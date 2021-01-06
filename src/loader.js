@@ -1,4 +1,4 @@
-function loadMMP(file) {
+function loadFile(file) {
     const reader = new FileReader();
 
     return new Promise((resolve, reject) => {
@@ -15,4 +15,24 @@ function loadMMP(file) {
     });
 }
 
-export {loadMMP};
+function loadURL(url) {
+    var req = new XMLHttpRequest();
+
+    req.open('GET', url, true);
+    req.responseType = 'text';
+    
+    return new Promise((resolve, reject) => {
+        req.onerror = () => {
+            req.abort();
+            reject(new DOMException("MMP URL loading failed!"));
+        };
+
+        req.onload = () => {
+            resolve(req.result);
+        };
+
+        req.send();
+    });
+}
+
+export {loadFile, loadURL};

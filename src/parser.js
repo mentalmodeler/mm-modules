@@ -1,5 +1,20 @@
 const NESTED_LISTS = ['relationships', 'concepts', 'properties'];
 
+function parseMMP(mmp) {
+    try {
+        if(mmp.indexOf('<?xml') > -1) {
+            return parseXML(mmp);
+        }
+        else {
+            return JSON.parse(mmp);
+        }
+    }
+    catch (e) {
+        console.error('Parsing of MMP file failed!');
+        alert('Parsing of MMP file failed!');
+    }
+}
+
 function parseXML(xmlString, excludeArray = []) {
     let json = {};
     let parser = new DOMParser();
@@ -77,4 +92,4 @@ function getChildNodes(xml) {
     return nodes;
 }
 
-export {parseXML};
+export {parseMMP};
