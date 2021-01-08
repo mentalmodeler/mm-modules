@@ -2,7 +2,7 @@ const NESTED_LISTS = ['relationships', 'concepts', 'properties'];
 
 function parseMMP(mmp) {
     try {
-        if(mmp.indexOf('<?xml') > -1) {
+        if (mmp.indexOf('<?xml') > -1) {
             return parseXML(mmp);
         }
         else {
@@ -10,8 +10,8 @@ function parseMMP(mmp) {
         }
     }
     catch (e) {
-        console.error('Parsing of MMP file failed!');
-        alert('Parsing of MMP file failed!');
+        console.error(e);
+        alert('Parsing of mmp failed!');
     }
 }
 

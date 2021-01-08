@@ -4,7 +4,7 @@ function loadFile(file) {
     return new Promise((resolve, reject) => {
         reader.onerror = () => {
             reader.abort();
-            reject(new DOMException("MMP file loading failed!"));
+            reject(new DOMException('MMP file loading failed!'));
         };
 
         reader.onload = () => {
@@ -16,7 +16,7 @@ function loadFile(file) {
 }
 
 function loadURL(url) {
-    var req = new XMLHttpRequest();
+    const req = new XMLHttpRequest();
 
     req.open('GET', url, true);
     req.responseType = 'text';
@@ -24,7 +24,7 @@ function loadURL(url) {
     return new Promise((resolve, reject) => {
         req.onerror = () => {
             req.abort();
-            reject(new DOMException("MMP URL loading failed!"));
+            reject(new  DOMException('MMP url loading failed!'));
         };
 
         req.onload = () => {
