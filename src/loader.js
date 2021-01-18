@@ -1,4 +1,4 @@
-function loadFile(file) {
+const loadFile = (file) => {
     const reader = new FileReader();
 
     return new Promise((resolve, reject) => {
@@ -13,9 +13,9 @@ function loadFile(file) {
 
         reader.readAsText(file);
     });
-}
+};
 
-function loadURL(url) {
+const loadURL = (url) => {
     const req = new XMLHttpRequest();
 
     req.open('GET', url, true);
@@ -33,6 +33,6 @@ function loadURL(url) {
 
         req.send();
     });
-}
+};
 
 export {loadFile, loadURL};

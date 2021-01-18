@@ -1,6 +1,6 @@
 const NESTED_LISTS = ['relationships', 'concepts', 'properties'];
 
-function parseMMP(mmp) {
+const parseMMP = (mmp) => {
     try {
         if (mmp.indexOf('<?xml') > -1) {
             return parseXML(mmp);
@@ -13,9 +13,9 @@ function parseMMP(mmp) {
         console.error(e);
         alert('Parsing of mmp failed!');
     }
-}
+};
 
-function parseXML(xmlString, excludeArray = []) {
+const parseXML = (xmlString, excludeArray = []) => {
     let json = {};
     let parser = new DOMParser();
     let xmlDoc = parser.parseFromString(xmlString, 'application/xml');
@@ -47,9 +47,9 @@ function parseXML(xmlString, excludeArray = []) {
     });
 
     return json;
-}
+};
 
-function getJSONFromNode(xmlNode, omitLocalNameProperty) {
+const getJSONFromNode = (xmlNode, omitLocalNameProperty) => {
     let json = {};
 
     xmlNode.childNodes.forEach((node) => {
@@ -68,9 +68,9 @@ function getJSONFromNode(xmlNode, omitLocalNameProperty) {
         }
     });
     return json;
-}
+};
 
-function getJSONFromArray(xmlArray) {
+const getJSONFromArray = (xmlArray) => {
     let a = [];
 
     xmlArray.forEach((node) => {
@@ -80,7 +80,7 @@ function getJSONFromArray(xmlArray) {
     return a;
 }
 
-function getChildNodes(xml) {
+const getChildNodes = (xml) => {
     let nodes = [];
 
     xml.childNodes.forEach((node) => {
