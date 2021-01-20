@@ -1,3 +1,5 @@
+import {runScenario} from './scenario';
+
 const compare = (model, canonical) => {
     const normalize = name => name.toLowerCase().trim(); 
     const getNode = ({name, id}) => ({name: name, id: id});
@@ -84,13 +86,15 @@ const compare = (model, canonical) => {
     };
 };
 
-const compareModels = ({modelsJSON, canonicalId}) => {
+const compareModels = ({modelsJSON, canonicalId, scenarioRubrick = {}}) => {
     const canonical = modelsJSON.find(model => model.id === canonicalId);
     const modelsToCompare = modelsJSON.filter(model => model.id !== canonicalId);
+    const scenarioInfluences = scenarioRubrick.concepts.map(({influence}) => parseFloat(influence));
+    const canonicalScenario = runScenario(canonical.concepts, scenarioInfluences);
     const results = {};
 
     modelsToCompare.forEach(model => {
-        results[model.id] = compare(model, canonical);
+        results[model.id] = compare(model, canonical, canonicalScenario);
     });
 
     return results;

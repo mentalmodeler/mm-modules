@@ -14,5 +14,8 @@
   "bugs": {
     "url": "https://github.com/mentalmodeler/mm-modules/issues"
   },
-  "homepage": "https://github.com/mentalmodeler/mm-modules#readme"
+  "homepage": "https://github.com/mentalmodeler/mm-modules#readme",
+  "dependencies": {
+    "mathjs": "^9.0.0"
+  }
 }

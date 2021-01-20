@@ -1,6 +1,7 @@
 import {compareModels} from './src/compare';
 import {loadFile, loadURL} from './src/loader';
 import {parseMMP} from './src/parser';
+import {runScenario} from './src/scenario';
 
 async function loadAndParse(file) {
     return parseMMP(await loadFile(file));
@@ -19,5 +20,6 @@ export {
     loadAndParse, 
     loadAndParseURL, 
     makeId, 
-    parseMMP
+    parseMMP,
+    runScenario,
 };
