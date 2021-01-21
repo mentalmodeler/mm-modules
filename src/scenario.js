@@ -1,4 +1,5 @@
 import {abs, max, multiply, subtract, tanh} from 'mathjs';
+import {normalizeName} from './compare';
 
 const sigm = (x) => 1 / (1 + Math.exp(-x));
 const getWeightMatrix = (concepts) => {
@@ -13,7 +14,7 @@ const getWeightMatrix = (concepts) => {
             }
         });
     });
-}
+};
 
 const converge = (initVec, weightMat, clampFn, influences = []) => {
     const epsilon = 0.00001;
@@ -38,17 +39,28 @@ const converge = (initVec, weightMat, clampFn, influences = []) => {
     }
 
     return currentVec;
-}
+};
 
-const runScenario = (concepts, influences, clampFn = sigm) => {
+const runScenario = ({concepts}, {concepts: scenarioConcepts = []}, clampFn = sigm) => {
     const vecSize = concepts.length;
     const initVec = new Array(vecSize).fill(1);
+    const influences = scenarioConcepts.map(({influence}) => parseFloat(influence));
     const weightMat = getWeightMatrix(concepts);
     const steadyVec = converge(initVec, weightMat, clampFn);
     const scenarioVec = converge(initVec, weightMat, clampFn, influences);
     const scenarioResult = subtract(scenarioVec, steadyVec);
 
-    return scenarioResult.map((inf, i) => ({id: concepts[i].id, influence: inf})); 
-}
+    return scenarioResult
+    .map((influence, i) => (
+    {
+        id: concepts[i].id, 
+        name: concepts[i].name,
+        influence: influence,
+    }
+    )).filter(({name}) => {
+        const sConcept = scenarioConcepts.find(({name: sName}) => normalizeName(name) === normalizeName(sName));
+        return !sConcept || !sConcept.influence;
+    }); 
+};
 
-export {sigm, tanh, runScenario};
+export {getWeightMatrix, runScenario, sigm, tanh};

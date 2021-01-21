@@ -78,7 +78,7 @@ const getJSONFromArray = (xmlArray) => {
     });
 
     return a;
-}
+};
 
 const getChildNodes = (xml) => {
     let nodes = [];
@@ -90,6 +90,6 @@ const getChildNodes = (xml) => {
     });
 
     return nodes;
-}
+};
 
 export {parseMMP};

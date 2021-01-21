@@ -1,14 +1,15 @@
 import {runScenario} from './scenario';
 
-const compare = (model, canonical, scenarioRubrick) => {
-    const normalize = name => name.toLowerCase().trim(); 
+const normalize = name => name.toLowerCase().trim(); 
+
+const compareModel = (model, canonical) => {
     const getNode = ({name, id}) => ({name: name, id: id});
     const findNode = ({id, nodes}) => {
         const _node = nodes.find(node => node.id === id) || {id: '', name: '[not found]'};
         return getNode(_node);
     }
 
-    const getRelationships = ({name: fromName, id: fromId, relationships}, index, nodes) => (
+    const getRelationships = ({name: fromName, id: fromId, relationships}, _, nodes) => (
         relationships && relationships.map(({name, id, influence}) => ({
             fromNode: {
                 id: fromId,
@@ -67,14 +68,8 @@ const compare = (model, canonical, scenarioRubrick) => {
     const correctlyLinkedRelationships = intersectionRelationships(modelRelationships, canonicalRelationships);
     const correctlySignedRelationships = correctlySigned(correctlyLinkedRelationships, canonicalRelationships);
     const incorrectlySignedRelationships = differenceRelationships(correctlyLinkedRelationships, correctlySignedRelationships);
-    const score = correctlySignedRelationships.length - (extraRelationships.length + missingRelationships.length);
 
-    if (scenarioRubrick) {
-        // const influences = scenarioRubrick.concepts.map(({influence}) => parseFloat(influence));
-        // const expectedInfluences = scenarioRubrick.concepts.map(
-        // const scenario = runScenario(model.concepts, influences);
-        // console.log(scenario);
-    }
+    let score = correctlySignedRelationships.length - (extraRelationships.length + missingRelationships.length);
 
     return {
         id: model.id,
@@ -93,16 +88,45 @@ const compare = (model, canonical, scenarioRubrick) => {
     };
 };
 
-const compareModels = ({modelsJSON, canonicalId, scenarioRubrick = {}}) => {
+const compareScenario = (model, scenario, correctResults) => {
+    const getPoints = concept => scenario.concepts.find(({name}) => normalize(name) === normalize(concept.name)).points;
+    const isCorrect = result => {
+        const cResult = correctResults.find(({name}) => normalize(name) === normalize(result.name));
+        return cResult && result.influence === cResult.influence;
+    };
+    const wrapConceptWithPoints = concept => {
+        const points = getPoints(concept);
+        return { ...concept, points };
+    };
+
+    const correct = results.filter(isCorrect).map(wrapConceptWithPoints);
+    const incorrect = results.filter(concept => !isCorrect(concept)).map(wrapConceptWithPoints);
+    const score = correct.length ? correct.map(({points}) => points).reduce((score, points) => score + points) : 0;
+
+    return {
+        score: score,
+        correct: correct,
+        incorrect: incorrect,
+    };
+};
+
+const compareModels = ({modelsJSON, canonicalId, scenario}) => {
     const canonical = modelsJSON.find(model => model.id === canonicalId);
+    const correctScenarioResult = runScenario(canonical, scenario);
     const modelsToCompare = modelsJSON.filter(model => model.id !== canonicalId);
-    const results = {};
+    let results = {};
 
     modelsToCompare.forEach(model => {
-        results[model.id] = compare(model, canonical, scenarioRubrick);
+        let result = compareModel(model, canonical);
+        const scenarioResult = compareScenario(model, scenario, correctScenarioResult);
+
+        result.scenario = scenarioResult;
+        result.score += scenarioResult.score;
+
+        results[model.id] = result;
     });
 
     return results;
 };
 
-export {compareModels};
+export {compareModels, compareModel, compareScenario, normalize as normalizeName};
