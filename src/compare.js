@@ -88,14 +88,17 @@ const compareModel = (model, canonical) => {
 };
 
 const compareScenario = (model, scenario, correctResults) => {
-    const getPoints = concept => scenario.concepts.find(({name}) => normalize(name) === normalize(concept.name)).points;
-    const isCorrect = result => {
-        const cResult = correctResults.find(({name}) => normalize(name) === normalize(result.name));
-        return cResult && result.influence === cResult.influence;
+    const getPoints = concept => {
+        const sConcept = scenario.concepts.find(({name}) => normalize(name) === normalize(concept.name));
+        return sConcept ? sConcept.points : 0;
     };
     const wrapConceptWithPoints = concept => {
         const points = getPoints(concept);
         return { ...concept, points };
+    };
+    const isCorrect = result => {
+        const cResult = correctResults.find(({name}) => normalize(name) === normalize(result.name));
+        return cResult && result.influence === cResult.influence;
     };
     const results = runScenario(model, scenario);
     const correct = results.filter(isCorrect).map(wrapConceptWithPoints);
