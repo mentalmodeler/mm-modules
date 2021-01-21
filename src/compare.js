@@ -68,8 +68,7 @@ const compareModel = (model, canonical) => {
     const correctlyLinkedRelationships = intersectionRelationships(modelRelationships, canonicalRelationships);
     const correctlySignedRelationships = correctlySigned(correctlyLinkedRelationships, canonicalRelationships);
     const incorrectlySignedRelationships = differenceRelationships(correctlyLinkedRelationships, correctlySignedRelationships);
-
-    let score = correctlySignedRelationships.length - (extraRelationships.length + missingRelationships.length);
+    const score = correctlySignedRelationships.length - (extraRelationships.length + missingRelationships.length);
 
     return {
         id: model.id,
