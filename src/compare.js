@@ -1,6 +1,6 @@
 import {runScenario} from './scenario';
 
-const compare = (model, canonical) => {
+const compare = (model, canonical, scenarioRubrick) => {
     const normalize = name => name.toLowerCase().trim(); 
     const getNode = ({name, id}) => ({name: name, id: id});
     const findNode = ({id, nodes}) => {
@@ -69,6 +69,13 @@ const compare = (model, canonical) => {
     const incorrectlySignedRelationships = differenceRelationships(correctlyLinkedRelationships, correctlySignedRelationships);
     const score = correctlySignedRelationships.length - (extraRelationships.length + missingRelationships.length);
 
+    if (scenarioRubrick) {
+        // const influences = scenarioRubrick.concepts.map(({influence}) => parseFloat(influence));
+        // const expectedInfluences = scenarioRubrick.concepts.map(
+        // const scenario = runScenario(model.concepts, influences);
+        // console.log(scenario);
+    }
+
     return {
         id: model.id,
         score: score,
@@ -89,12 +96,10 @@ const compare = (model, canonical) => {
 const compareModels = ({modelsJSON, canonicalId, scenarioRubrick = {}}) => {
     const canonical = modelsJSON.find(model => model.id === canonicalId);
     const modelsToCompare = modelsJSON.filter(model => model.id !== canonicalId);
-    const scenarioInfluences = scenarioRubrick.concepts.map(({influence}) => parseFloat(influence));
-    const canonicalScenario = runScenario(canonical.concepts, scenarioInfluences);
     const results = {};
 
     modelsToCompare.forEach(model => {
-        results[model.id] = compare(model, canonical, canonicalScenario);
+        results[model.id] = compare(model, canonical, scenarioRubrick);
     });
 
     return results;

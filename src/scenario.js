@@ -38,7 +38,6 @@ const converge = (initVec, weightMat, clampFn, influences = []) => {
     }
 
     return currentVec;
-
 }
 
 const runScenario = (concepts, influences, clampFn = sigm) => {
@@ -49,9 +48,7 @@ const runScenario = (concepts, influences, clampFn = sigm) => {
     const scenarioVec = converge(initVec, weightMat, clampFn, influences);
     const scenarioResult = subtract(scenarioVec, steadyVec);
 
-    console.log(scenarioResult);
-
-    return scenarioResult;
+    return scenarioResult.map((inf, i) => ({id: concepts[i].id, influence: inf})); 
 }
 
 export {sigm, tanh, runScenario};
