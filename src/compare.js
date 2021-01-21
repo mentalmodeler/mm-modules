@@ -97,7 +97,7 @@ const compareScenario = (model, scenario, correctResults) => {
         const points = getPoints(concept);
         return { ...concept, points };
     };
-
+    const results = runScenario(model, scenario);
     const correct = results.filter(isCorrect).map(wrapConceptWithPoints);
     const incorrect = results.filter(concept => !isCorrect(concept)).map(wrapConceptWithPoints);
     const score = correct.length ? correct.map(({points}) => points).reduce((score, points) => score + points) : 0;
