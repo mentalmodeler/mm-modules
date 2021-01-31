@@ -1,4 +1,5 @@
-import {runScenario} from './scenario';
+// import {runScenario} from './scenario';
+import {getMetrics} from './metrics';
 
 const normalize = name => name.toLowerCase().trim(); 
 
@@ -87,48 +88,58 @@ const compareModel = (model, canonical) => {
     };
 };
 
-const compareScenario = (model, scenario, correctResults) => {
-    const getPoints = concept => {
-        const sConcept = scenario.concepts.find(({name}) => normalize(name) === normalize(concept.name));
-        return sConcept ? sConcept.points : 0;
-    };
-    const wrapConceptWithPoints = concept => {
-        const points = getPoints(concept);
-        return { ...concept, points };
-    };
-    const isCorrect = result => {
-        const cResult = correctResults.find(({name}) => normalize(name) === normalize(result.name));
-        return cResult && result.influence === cResult.influence;
-    };
-    const results = runScenario(model, scenario);
-    const correct = results.filter(isCorrect).map(wrapConceptWithPoints);
-    const incorrect = results.filter(concept => !isCorrect(concept)).map(wrapConceptWithPoints);
-    const score = correct.length ? correct.map(({points}) => points).reduce((score, points) => score + points) : 0;
+// not comapring scenarios anymore - JME 2021/01/31
+// const compareScenario = (model, scenario, correctResults) => {
+//     const getPoints = concept => {
+//         const sConcept = scenario.concepts.find(({name}) => normalize(name) === normalize(concept.name));
+//         return sConcept ? sConcept.points : 0;
+//     };
+//     const wrapConceptWithPoints = concept => {
+//         const points = getPoints(concept);
+//         return { ...concept, points };
+//     };
+//     const isCorrect = result => {
+//         const cResult = correctResults.find(({name}) => normalize(name) === normalize(result.name));
+//         return cResult && result.influence === cResult.influence;
+//     };
+//     const results = runScenario(model, scenario);
+//     const correct = results.filter(isCorrect).map(wrapConceptWithPoints);
+//     const incorrect = results.filter(concept => !isCorrect(concept)).map(wrapConceptWithPoints);
+//     const score = correct.length ? correct.map(({points}) => points).reduce((score, points) => score + points) : 0;
 
-    return {
-        score: score,
-        correct: correct,
-        incorrect: incorrect,
-    };
-};
+//     return {
+//         score: score,
+//         correct: correct,
+//         incorrect: incorrect,
+//     };
+// };
 
 const compareModels = ({modelsJSON, canonicalId, scenario}) => {
     const canonical = modelsJSON.find(model => model.id === canonicalId);
-    const correctScenarioResult = runScenario(canonical, scenario);
+    
+    // not running the scenario anymore - JME 2021/01/31
+    // const correctScenarioResult = runScenario(canonical, scenario);
+    
     const modelsToCompare = modelsJSON.filter(model => model.id !== canonicalId);
-    let results = {};
-
-    modelsToCompare.forEach(model => {
-        let result = compareModel(model, canonical);
-        const scenarioResult = compareScenario(model, scenario, correctScenarioResult);
-
-        result.scenario = scenarioResult;
-        result.score += scenarioResult.score;
-
-        results[model.id] = result;
-    });
-
-    return results;
+    return  modelsToCompare.reduce(
+        (acc, model) => ({
+            ...acc,
+            [model.id]: {
+                ...compareModel(model, canonical),
+                ...getMetrics({concepts: model.concepts}),
+            }
+        })
+    , {});
+    
+    // modelsToCompare.forEach(model => {
+    //     let result = compareModel(model, canonical);
+    //     // not running the scenario anymore - JME 2021/01/31
+    //     // const scenarioResult = compareScenario(model, scenario, correctScenarioResult);
+    //     // result.scenario = scenarioResult;
+    //     // result.score += scenarioResult.score;
+    //     results[model.id] = result;
+    // });
+    // return results;
 };
 
-export {compareModels, compareModel, compareScenario, normalize as normalizeName};
+export {compareModels, compareModel, /*compareScenario, */normalize as normalizeName};
