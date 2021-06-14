@@ -41,9 +41,13 @@ const compareModel = (model, canonical) => {
         return a.filter(({fromNode, toNode}) => !names.includes(normalize(fromNode.name + toNode.name)));
     };
 
-    const intersectionRelationships = (a, b) => {
+    const intersectionRelationships = (a, b, invert) => {
         const names = b.map(({fromNode, toNode}) => normalize(fromNode.name + toNode.name));
-        return a.filter(({fromNode, toNode}) => names.includes(normalize(fromNode.name + toNode.name)));
+        return a.filter(({fromNode, toNode}) => names.includes(normalize(
+            invert
+                ? toNode.name + fromNode.name
+                : fromNode.name + toNode.name
+        )));
     };
 
     const correctlySigned = (relationships, cRelationships) => {
@@ -57,6 +61,16 @@ const compareModel = (model, canonical) => {
         });
     };
 
+    const findReversedRelationships = ({extraRelationships, missingRelationships}) => {
+        const reversedRelationships = intersectionRelationships(extraRelationships, missingRelationships, true);
+        const names = reversedRelationships.map(({fromNode, toNode}) => normalize(fromNode.name + toNode.name));
+        return {
+            reversedRelationships,
+            updatedExtraRelationships: extraRelationships.filter(({fromNode, toNode}) => !names.includes(normalize(fromNode.name + toNode.name))),
+            updatedMissingRelationships: missingRelationships.filter(({fromNode, toNode}) => !names.includes(normalize(toNode.name + fromNode.name))),
+        };
+    };
+
     const canonicalNodes = canonical.concepts.map(getNode);
     const modelNodes = model.concepts.map(getNode);
     const canonicalRelationships = canonical.concepts.flatMap(getRelationships);
@@ -66,11 +80,11 @@ const compareModel = (model, canonical) => {
     const presentNodes = intersectionNodes(modelNodes, canonicalNodes);
     const extraRelationships = differenceRelationships(modelRelationships, canonicalRelationships);
     const missingRelationships = differenceRelationships(canonicalRelationships, modelRelationships);
+    const {reversedRelationships, updatedExtraRelationships, updatedMissingRelationships} = findReversedRelationships({extraRelationships, missingRelationships});
     const correctlyLinkedRelationships = intersectionRelationships(modelRelationships, canonicalRelationships);
     const correctlySignedRelationships = correctlySigned(correctlyLinkedRelationships, canonicalRelationships);
     const incorrectlySignedRelationships = differenceRelationships(correctlyLinkedRelationships, correctlySignedRelationships);
-    const score = correctlySignedRelationships.length - (extraRelationships.length + missingRelationships.length);
-
+    const score = correctlySignedRelationships.length - (updatedExtraRelationships.length + updatedMissingRelationships.length + reversedRelationships.length);
     return {
         id: model.id,
         score: score,
@@ -80,8 +94,9 @@ const compareModel = (model, canonical) => {
             present: presentNodes,
         },
         relationships: {
-            extra: extraRelationships,
-            missing: missingRelationships,
+            extra: updatedExtraRelationships, // extraRelationships,
+            missing: updatedMissingRelationships, // missingRelationships,
+            reversed: reversedRelationships,
             correctlySigned: correctlySignedRelationships,
             incorrectlySigned: incorrectlySignedRelationships,
         },

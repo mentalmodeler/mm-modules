@@ -43,7 +43,7 @@ const getType = ({id, concepts = []}) => {
     let type = 'none';
     if (indegree !== 0) {
         if (outdegree !== 0) {
-            type = 'ordinay';
+            type = 'ordinary';
         } else {
             type = 'receiver';
         }
@@ -91,13 +91,13 @@ export const getMetrics = ({concepts = []}) => {
     const numLinks = getNumberOfConnections(concepts);
     const drivers = getByType({concepts, type: 'driver'});
     const receivers = getByType({concepts, type: 'receiver'});
-    const ordinay = getByType({concepts, type: 'ordinay'});
+    const ordinary = getByType({concepts, type: 'ordinary'});
     return {
         numNodes,
         numRelationships: numLinks,
         numDrivers: drivers.length,
         numReceivers: receivers.length,
-        numOrdinay: ordinay.length,
+        numOrdinary: ordinary.length,
         density: round(numLinks / getPossibleNumberOfConnections(concepts), precision),
         relationshipsPerNode: numLinks / numNodes,
         complexity: receivers.length > 0 && drivers.length > 0 ? receivers.length / drivers.length: 0,
