@@ -16,23 +16,35 @@ const loadFile = (file) => {
 };
 
 const loadURL = (url) => {
-    const req = new XMLHttpRequest();
+    return new Promise(async(resolve, reject) => {
+        // fetch(url).then((response) => response.text().then((text) => resolve(text))).catch((err) => reject(new  DOMException('MMP url loading failed!')));
+        try {
+            const response = await fetch(url);
+            const text = await response.text();
+            resolve(text)
 
-    req.open('GET', url, true);
-    req.responseType = 'text';
-    
-    return new Promise((resolve, reject) => {
-        req.onerror = () => {
-            req.abort();
+        } catch (e) {
             reject(new  DOMException('MMP url loading failed!'));
-        };
-
-        req.onload = () => {
-            resolve(req.result);
-        };
-
-        req.send();
-    });
+        }
+    })
+    
 };
+
+// const loadURL = async (url) => {
+//     // const req = new XMLHttpRequest();
+//     // req.open('GET', url, true);
+//     // req.responseType = 'text';    
+//     return new Promise((resolve, reject) => {
+//         req.onerror = () => {
+//             req.abort();
+//             reject(new  DOMException('MMP url loading failed!'));
+//         };
+//         req.onload = () => {
+//             console.log('req:', req);
+//             resolve(req.result);
+//         };
+//         req.send();
+//     });
+// };
 
 export {loadFile, loadURL};

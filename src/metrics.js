@@ -53,7 +53,7 @@ const getType = ({id, concepts = []}) => {
     return type;
 };
 
-const getConceptsWithMetrics = ({concepts= []}) => 
+export const getConceptsWithMetrics = ({concepts= []}) =>
     concepts.map(
         ({id, ...concept}) => {
             const {indegree, outdegree} = getDegrees({id, concepts});

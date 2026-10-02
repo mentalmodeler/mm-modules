@@ -1,4 +1,29 @@
 const NESTED_LISTS = ['relationships', 'concepts', 'properties'];
+const getChars = (length = 4) => Math.random().toString(16).slice(-(length - 15));
+const makeId = () => `${getChars(8)}-${getChars()}-${getChars()}-${getChars()}-${getChars(12)}`
+
+const replaceFuzzyInfluence = (influence) => {
+    if (isNaN(parseFloat(influence))) {
+        switch (influence) {
+            case 'L+':
+                return '.34';
+            case 'M+':
+                return '.67';
+            case 'H+':
+                return '1';
+            case 'L-':
+                return '-.34';
+            case 'M-':
+                return '-.67';
+            case 'H-':
+                return '-1';
+            default:
+                console.log('Error: replaceFuzzyInfluence, influence:', influence);
+                return influence;
+        }
+    }
+    return influence;
+}
 
 const parseMMP = (mmp) => {
     try {
@@ -6,12 +31,16 @@ const parseMMP = (mmp) => {
             return parseXML(mmp);
         }
         else {
-            return JSON.parse(mmp);
+            const js = JSON.parse(mmp);
+            if (!js?.info?.id) {
+                js.info.id = makeId();
+            }
+            return js;
         }
     }
     catch (e) {
         console.error(e);
-        alert('Parsing of mmp failed!');
+        alert('Parsing of mmp failed!' + e);
     }
 };
 
@@ -26,6 +55,9 @@ const parseXML = (xmlString, excludeArray = []) => {
             case 'info':
                 if (excludeArray.indexOf('info') === -1) {
                     json.info = getJSONFromNode(node);
+                    if (!json.info.id) {
+                        json.info.id = makeId();
+                    }
                 }
             break;
             case 'groupNames':
@@ -45,7 +77,7 @@ const parseXML = (xmlString, excludeArray = []) => {
             break;
         }
     });
-
+    console.log('JSON from XML:', json);
     return json;
 };
 
@@ -63,7 +95,10 @@ const getJSONFromNode = (xmlNode, omitLocalNameProperty) => {
                 json[node.localName] = getJSONFromArray(getChildNodes(node));
             }
             else if (!omitLocalNameProperty) {
-                json[node.localName] = node.textContent;
+                const value = node.localName === 'influence'
+                    ? replaceFuzzyInfluence(node.textContent)
+                    : node.textContent
+                json[node.localName] = value; // node.textContent
             }
         }
     });
