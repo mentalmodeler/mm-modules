@@ -38,7 +38,9 @@ fuzzy values like `"H+"`/`"M-"` that get converted to numbers).
   to convergence (`converge`, epsilon-based fixed point) with a squashing function (`sigm` or
   `tanh`), once at baseline and once with scenario concepts clamped to fixed influence values.
   Returns the delta per concept between the clamped and baseline steady states, excluding
-  concepts that were themselves clamped as scenario inputs.
+  concepts that were themselves clamped as scenario inputs. `sigm` and `tanh` (the two squashing
+  functions `runScenario` accepts as its `clampFn` argument) are also exported directly from
+  `index.js`, for consumers that need to let a user pick between them by name.
 - **compare.js** — `compareModels`/`compareModel`: diffs a set of student/candidate models
   against a canonical model. Computes extra/missing/present nodes, extra/missing relationships,
   then detects **reversed** relationships (an edge present in both models but with endpoints

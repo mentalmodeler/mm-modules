@@ -1,7 +1,7 @@
 import {compareModels} from './src/compare';
 import {loadFile, loadURL} from './src/loader';
 import {parseMMP} from './src/parser';
-import {runScenario} from './src/scenario';
+import {runScenario, sigm, tanh} from './src/scenario';
 import {getMetrics, getConceptsWithMetrics} from './src/metrics';
 import {importCSV} from './src/csvImport';
 
@@ -26,6 +26,8 @@ export {
     makeId, 
     parseMMP,
     runScenario,
+    sigm,
+    tanh,
     getMetrics,
     getConceptsWithMetrics,
     importCSV,
