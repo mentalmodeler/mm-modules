@@ -10,7 +10,8 @@ build step, no bundler config, no linter, and no test suite — `index.js` re-ex
 API directly from `src/`, and consuming apps import the ES6 source as-is.
 
 There are no npm scripts defined in `package.json` (no build/lint/test commands exist in this
-repo). The only dependency is `mathjs`, used for matrix operations in `src/scenario.js`.
+repo). Dependencies: `mathjs` (matrix operations in `src/scenario.js`) and `d3-force` (graph
+layout in `src/csvImport.js`).
 
 ## Domain model
 
@@ -55,6 +56,16 @@ fuzzy values like `"H+"`/`"M-"` that get converted to numbers).
   `indegree`/`outdegree`/`centrality`/`type`, with no top-N truncation or type filtering; use it
   when a consumer needs the full per-concept list (e.g. a sortable table) rather than `getMetrics`'
   summary/ranking shape.
+- **csvImport.js** — `importCSV`: builds a model from the same adjacency-matrix shape
+  `getMatrixRows`/CSV export produces in consuming apps (header row = model name + concept names;
+  one data row per concept, in the same order, with influence values in the matching columns),
+  then lays out the concepts with a `d3-force` simulation (repulsion + edges-as-springs,
+  run synchronously for a fixed tick count) rather than a hierarchical/layered layout like `dagre`.
+  FCMs are built around feedback loops, so a DAG-oriented layout has to fake-reverse edges to
+  impose a hierarchy on a cyclic graph, producing tangled backward edges; a force simulation has
+  no notion of hierarchy or edge direction, so cycles settle naturally instead of fighting the
+  algorithm. Positions are normalized (translated) after simulation so all coordinates are
+  positive, since consuming apps' canvases start at the origin.
 
 ## Working in this repo
 

@@ -3,6 +3,7 @@ import {loadFile, loadURL} from './src/loader';
 import {parseMMP} from './src/parser';
 import {runScenario} from './src/scenario';
 import {getMetrics, getConceptsWithMetrics} from './src/metrics';
+import {importCSV} from './src/csvImport';
 
 async function loadAndParse(file) {
     return parseMMP(await loadFile(file));
@@ -27,4 +28,5 @@ export {
     runScenario,
     getMetrics,
     getConceptsWithMetrics,
+    importCSV,
 };
