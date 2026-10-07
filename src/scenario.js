@@ -1,5 +1,4 @@
 import {abs, max, multiply, subtract, tanh} from 'mathjs';
-import {normalizeName} from './compare';
 
 const sigm = (x) => 1 / (1 + Math.exp(-x));
 const getWeightMatrix = (concepts) => {
@@ -51,16 +50,16 @@ const runScenario = ({concepts}, {concepts: scenarioConcepts = []}, clampFn = si
     const scenarioResult = subtract(scenarioVec, steadyVec);
 
     return scenarioResult
-    .map((influence, i) => (
-    {
-        id: concepts[i].id, 
-        name: concepts[i].name,
-        influence: influence,
-    }
-    )).filter(({name}) => {
-        const sConcept = scenarioConcepts.find(({name: sName}) => normalizeName(name) === normalizeName(sName));
-        return !sConcept || !sConcept.influence;
-    }); 
+        .map((influence, i) => ({
+            id: concepts[i].id,
+            name: concepts[i].name,
+            influence,
+        }))
+        // scenarioConcepts[i] is the clamp input for concepts[i] (the caller builds it by
+        // mapping over the same concepts array -- see runScenarioCalculation in -suite), so
+        // excluding clamped concepts by this same index, rather than by re-matching name,
+        // can't be confused by two concepts sharing a name where only one was clamped.
+        .filter((_, i) => !influences[i]);
 };
 
 export {getWeightMatrix, runScenario, sigm, tanh};
