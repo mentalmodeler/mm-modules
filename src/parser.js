@@ -31,6 +31,9 @@ const parseMMP = (mmp) => {
         }
         else {
             const js = JSON.parse(mmp);
+            if (!js || typeof js !== 'object' || Array.isArray(js)) {
+                throw new Error('Not a model object.');
+            }
             if (!js?.info?.id) {
                 js.info = {...js.info, id: makeId()};
             }
@@ -76,6 +79,9 @@ const parseXML = (xmlString, excludeArray = []) => {
             break;
         }
     });
+    if (!json.info && excludeArray.indexOf('info') === -1) {
+        json.info = {id: makeId()};
+    }
     return json;
 };
 

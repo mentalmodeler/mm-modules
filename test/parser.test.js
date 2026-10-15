@@ -36,6 +36,11 @@ describe('parseMMP (JSON)', () => {
         expect(parseMMP('{not json')).toBeUndefined();
         expect(alert).toHaveBeenCalledTimes(1);
     });
+
+    it.each(['null', '5', '"x"', '[]'])('alerts and returns undefined for non-object JSON %s', (text) => {
+        expect(parseMMP(text)).toBeUndefined();
+        expect(alert).toHaveBeenCalledTimes(1);
+    });
 });
 
 describe('parseMMP (XML)', () => {
@@ -62,5 +67,12 @@ describe('parseMMP (XML)', () => {
     it('leaves out the relationships key for a concept that has none', () => {
         // Documents why compareModels has to tolerate a missing relationships list.
         expect(parseMMP(xml).concepts[1]).not.toHaveProperty('relationships');
+    });
+
+    it('backfills info.id when the XML has no info element', () => {
+        const noInfo = `<?xml version="1.0"?><mentalmodeler><concepts><concept><id>a</id><name>Algae</name></concept></concepts></mentalmodeler>`;
+        const result = parseMMP(noInfo);
+        expect(result.info.id).toMatch(ID);
+        expect(result.concepts).toHaveLength(1);
     });
 });
