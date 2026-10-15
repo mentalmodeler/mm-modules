@@ -149,3 +149,40 @@ describe('compareModels with dangling relationships', () => {
         expect(result.score).toBe(1);
     });
 });
+
+describe('compareModels with duplicate concept names', () => {
+    const compare = (canon, student) =>
+        compareModels({ modelsJSON: [{ id: 'c', ...canon }, { id: 's', ...student }], canonicalId: 'c' }).s;
+
+    const canonAtoB = { concepts: [concept('a', 'A', [rel('b', 1)]), concept('b', 'B')] };
+
+    it('scores a duplicated student edge once, not once per copy', () => {
+        const student = {
+            concepts: [concept('a1', 'A', [rel('b', 1)]), concept('a2', 'a ', [rel('b', 1)]), concept('b', 'B')],
+        };
+        const result = compare(canonAtoB, student);
+        expect(result.relationships.correctlySigned).toHaveLength(1);
+        expect(result.score).toBe(1);
+        expect(result.nodes.present).toHaveLength(3);
+    });
+
+    it('lets the first duplicate in model order decide the sign', () => {
+        const student = {
+            concepts: [concept('a1', 'A', [rel('b', -1)]), concept('a2', 'a ', [rel('b', 1)]), concept('b', 'B')],
+        };
+        const result = compare(canonAtoB, student);
+        expect(result.relationships.correctlySigned).toHaveLength(0);
+        expect(result.relationships.incorrectlySigned).toHaveLength(1);
+        expect(result.score).toBe(0);
+    });
+
+    it('counts a duplicated canonical edge as missing once', () => {
+        const canon = {
+            concepts: [concept('a1', 'A', [rel('b', 1)]), concept('a2', 'a ', [rel('b', 1)]), concept('b', 'B')],
+        };
+        const student = { concepts: [concept('a', 'A'), concept('b', 'B')] };
+        const result = compare(canon, student);
+        expect(result.relationships.missing).toHaveLength(1);
+        expect(result.score).toBe(-1);
+    });
+});

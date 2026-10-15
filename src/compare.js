@@ -8,6 +8,20 @@ const normalize = name => String(name ?? '').toLowerCase().trim();
 // collide with "a"+"bc".
 const relationshipKey = (fromNode, toNode) => `${normalize(fromNode.name)}\u0000${normalize(toNode.name)}`;
 
+// Keep the first relationship for each (from, to) key. Two concepts can share a normalized
+// name (e.g. "A" and "a "), and each copy would otherwise match the other model's edge.
+const uniqueRelationships = (relationships) => {
+    const seen = new Set();
+    return relationships.filter(({fromNode, toNode}) => {
+        const key = relationshipKey(fromNode, toNode);
+        if (seen.has(key)) {
+            return false;
+        }
+        seen.add(key);
+        return true;
+    });
+};
+
 const compareModel = (model, canonical) => {
     const getNode = ({name, id}) => ({name: name, id: id});
     const findNode = ({id, nodes}) => {
@@ -82,8 +96,8 @@ const compareModel = (model, canonical) => {
     const modelConcepts = model.concepts || [];
     const canonicalNodes = canonicalConcepts.map(getNode);
     const modelNodes = modelConcepts.map(getNode);
-    const canonicalRelationships = canonicalConcepts.flatMap(getRelationships);
-    const modelRelationships = modelConcepts.flatMap(getRelationships);
+    const canonicalRelationships = uniqueRelationships(canonicalConcepts.flatMap(getRelationships));
+    const modelRelationships = uniqueRelationships(modelConcepts.flatMap(getRelationships));
     const extraNodes = differenceNodes(modelNodes, canonicalNodes);
     const missingNodes = differenceNodes(canonicalNodes, modelNodes);
     const presentNodes = intersectionNodes(modelNodes, canonicalNodes);
