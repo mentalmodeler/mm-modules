@@ -83,3 +83,38 @@ describe('compareModels', () => {
         expect(result.nodes.present).toHaveLength(1);
     });
 });
+
+describe('compareModels with malformed models', () => {
+    const compare = (canon, student) =>
+        compareModels({ modelsJSON: [{ id: 'c', ...canon }, { id: 's', ...student }], canonicalId: 'c' }).s;
+
+    it('does not throw on a concept with a missing, null or non-string name', () => {
+        const canon = { concepts: [{ id: 'a', name: 'A' }, { id: 'b' }] };
+        const student = { concepts: [{ id: 'a', name: 'A' }, { id: 'b', name: null }, { id: 'c', name: 5 }] };
+        const result = compare(canon, student);
+        expect(result.nodes.present.map(({ id }) => id)).toEqual(['a', 'b']);
+        expect(result.nodes.extra.map(({ id }) => id)).toEqual(['c']);
+        expect(result.numNodes).toBe(3);
+    });
+
+    it('treats relationships: null as no relationships', () => {
+        const canon = { concepts: [{ id: 'a', name: 'A', relationships: null }] };
+        const student = { concepts: [{ id: 'a', name: 'A', relationships: null }] };
+        const result = compare(canon, student);
+        expect(result.score).toBe(0);
+        expect(result.numRelationships).toBe(0);
+    });
+
+    it('treats a missing concepts key on the student as an empty model', () => {
+        const result = compare({ concepts: [{ id: 'a', name: 'A' }] }, {});
+        expect(result.nodes.missing.map(({ name }) => name)).toEqual(['A']);
+        expect(result.nodes.present).toEqual([]);
+        expect(result.numNodes).toBe(0);
+    });
+
+    it('treats a missing concepts key on the canonical model as an empty model', () => {
+        const result = compare({}, { concepts: [{ id: 'a', name: 'A' }] });
+        expect(result.nodes.extra.map(({ name }) => name)).toEqual(['A']);
+        expect(result.nodes.missing).toEqual([]);
+    });
+});

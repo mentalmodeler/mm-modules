@@ -1,7 +1,7 @@
 import {getMetrics} from './metrics';
 import {toInfluence} from './influence';
 
-const normalize = name => name.toLowerCase().trim();
+const normalize = name => String(name ?? '').toLowerCase().trim();
 
 // Relationships are matched by their (from, to) names, each normalized on its own, so
 // stray whitespace/case in one name can't bleed into the other and "ab"+"c" can't
@@ -15,8 +15,8 @@ const compareModel = (model, canonical) => {
         return getNode(_node);
     }
 
-    const getRelationships = ({name: fromName, id: fromId, relationships = []}, _, nodes) => (
-        relationships.map(({name, id, influence}) => ({
+    const getRelationships = ({name: fromName, id: fromId, relationships}, _, nodes) => (
+        (relationships || []).map(({name, id, influence}) => ({
             fromNode: {
                 id: fromId,
                 name: fromName
@@ -76,10 +76,12 @@ const compareModel = (model, canonical) => {
         };
     };
 
-    const canonicalNodes = canonical.concepts.map(getNode);
-    const modelNodes = model.concepts.map(getNode);
-    const canonicalRelationships = canonical.concepts.flatMap(getRelationships);
-    const modelRelationships = model.concepts.flatMap(getRelationships);
+    const canonicalConcepts = canonical.concepts || [];
+    const modelConcepts = model.concepts || [];
+    const canonicalNodes = canonicalConcepts.map(getNode);
+    const modelNodes = modelConcepts.map(getNode);
+    const canonicalRelationships = canonicalConcepts.flatMap(getRelationships);
+    const modelRelationships = modelConcepts.flatMap(getRelationships);
     const extraNodes = differenceNodes(modelNodes, canonicalNodes);
     const missingNodes = differenceNodes(canonicalNodes, modelNodes);
     const presentNodes = intersectionNodes(modelNodes, canonicalNodes);
@@ -117,7 +119,7 @@ const compareModels = ({modelsJSON, canonicalId, scenario}) => {
             ...acc,
             [model.id]: {
                 ...compareModel(model, canonical),
-                ...getMetrics({concepts: model.concepts}),
+                ...getMetrics({concepts: model.concepts || []}),
             }
         })
     , {});

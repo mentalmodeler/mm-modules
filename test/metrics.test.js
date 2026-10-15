@@ -48,3 +48,14 @@ describe('getMetrics', () => {
         });
     });
 });
+
+describe('getMetrics with null relationships', () => {
+    it('treats relationships: null as none', () => {
+        const result = getMetrics({
+            concepts: [{ id: 'a', name: 'A', relationships: null }, concept('b', 'B', [rel('a', 1)])],
+        });
+        expect(result.numRelationships).toBe(1);
+        expect(result.numDrivers).toBe(1);
+        expect(result.numReceivers).toBe(1);
+    });
+});

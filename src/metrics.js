@@ -14,7 +14,7 @@ const getPossibleNumberOfConnections = (concepts = []) => {
 
 const getInfluencees = ({id = '', concepts = []}) => 
     concepts.flatMap(
-        ({relationships = []}) => relationships.filter((relationship) => relationship.id === id)
+        ({relationships}) => (relationships || []).filter((relationship) => relationship.id === id)
     );
 
 const getIndegree = ({id = '', concepts = []}) => 
@@ -22,8 +22,8 @@ const getIndegree = ({id = '', concepts = []}) =>
         (acc, {influence}) => acc + parseInfluence(influence)
     , 0);
 
-const getOutdegree = (relationships = []) =>
-    relationships.reduce(
+const getOutdegree = (relationships) =>
+    (relationships || []).reduce(
         (acc, {influence}) => acc + parseInfluence(influence)    
     , 0);
 
