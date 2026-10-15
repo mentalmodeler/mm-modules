@@ -29,7 +29,8 @@ const converge = (initVec, weightMat, clampFn, influences = []) => {
     // fixed point only like 1/sqrt(n), so epsilon alone is not a safe stopping rule.
     while (diff > epsilon && iterations < MAX_ITERATIONS) {
         iterations += 1;
-        const intermediateVec = multiply(weightMat, previousVec);
+        // vector x matrix (row = source): each concept collects from the concepts that point at it.
+        const intermediateVec = multiply(previousVec, weightMat);
 
         currentVec = intermediateVec.map((x, i) => {
             if (influences[i]) {

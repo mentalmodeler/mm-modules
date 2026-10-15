@@ -78,3 +78,20 @@ describe('blank influences', () => {
         result.forEach(({ influence }) => expect(Number.isFinite(influence)).toBe(true));
     });
 });
+
+describe('runScenario direction of influence', () => {
+    // a -> b with weight 1: a influences b.
+    const chain = { concepts: [concept('a', 'A', [rel('b', 1)]), concept('b', 'B')] };
+
+    it('moves the influenced concept when its influencer is clamped', () => {
+        const [b] = runScenario(chain, { concepts: [{ influence: 1 }, { influence: 0 }] });
+        expect(b.id).toBe('b');
+        expect(b.influence).toBeGreaterThan(0.05);
+    });
+
+    it('does not move an influencer when the concept it influences is clamped', () => {
+        const [a] = runScenario(chain, { concepts: [{ influence: 0 }, { influence: 1 }] });
+        expect(a.id).toBe('a');
+        expect(a.influence).toBeCloseTo(0, 10);
+    });
+});
