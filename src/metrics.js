@@ -1,7 +1,6 @@
-const parseInfluence = (influence) => {
-    const parsed = parseFloat(influence);
-    return !isNaN(parsed) ? Math.abs(parsed) : 0;
-};
+import {toInfluence} from './influence';
+
+const parseInfluence = (influence) => Math.abs(toInfluence(influence));
 
 const getNumberOfConnections = (concepts = []) => 
     concepts.reduce(
@@ -75,7 +74,7 @@ const round = (number, precision) => {
 };
 
 const rank = ({concepts = [], indegree = true, outdegree = true}) => 
-    concepts.sort((a, b) => {
+    [...concepts].sort((a, b) => {
         const valueA = (indegree ? a.indegree : 0) + (outdegree ? a.outdegree : 0);
         const valueB = (indegree ? b.indegree : 0) + (outdegree ? b.outdegree : 0);
         if (valueA === valueB) {
@@ -89,6 +88,7 @@ export const getMetrics = ({concepts = []}) => {
     const precision = 10;
     const numNodes = concepts.length;
     const numLinks = getNumberOfConnections(concepts);
+    const possibleLinks = getPossibleNumberOfConnections(concepts);
     const drivers = getByType({concepts, type: 'driver'});
     const receivers = getByType({concepts, type: 'receiver'});
     const ordinary = getByType({concepts, type: 'ordinary'});
@@ -98,8 +98,8 @@ export const getMetrics = ({concepts = []}) => {
         numDrivers: drivers.length,
         numReceivers: receivers.length,
         numOrdinary: ordinary.length,
-        density: round(numLinks / getPossibleNumberOfConnections(concepts), precision),
-        relationshipsPerNode: numLinks / numNodes,
+        density: possibleLinks > 0 ? round(numLinks / possibleLinks, precision) : 0,
+        relationshipsPerNode: numNodes > 0 ? numLinks / numNodes : 0,
         complexity: receivers.length > 0 && drivers.length > 0 ? receivers.length / drivers.length: 0,
         drivers,
         driversRanked: rank({concepts, indegree: false}).slice(0, 5),

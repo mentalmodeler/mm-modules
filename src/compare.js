@@ -1,7 +1,13 @@
 // import {runScenario} from './scenario';
 import {getMetrics} from './metrics';
+import {toInfluence} from './influence';
 
-const normalize = name => name.toLowerCase().trim(); 
+const normalize = name => name.toLowerCase().trim();
+
+// Relationships are matched by their (from, to) names, each normalized on its own, so
+// stray whitespace/case in one name can't bleed into the other and "ab"+"c" can't
+// collide with "a"+"bc".
+const relationshipKey = (fromNode, toNode) => `${normalize(fromNode.name)}\u0000${normalize(toNode.name)}`;
 
 const compareModel = (model, canonical) => {
     const getNode = ({name, id}) => ({name: name, id: id});
@@ -10,8 +16,8 @@ const compareModel = (model, canonical) => {
         return getNode(_node);
     }
 
-    const getRelationships = ({name: fromName, id: fromId, relationships}, _, nodes) => (
-        relationships && relationships.map(({name, id, influence}) => ({
+    const getRelationships = ({name: fromName, id: fromId, relationships = []}, _, nodes) => (
+        relationships.map(({name, id, influence}) => ({
             fromNode: {
                 id: fromId,
                 name: fromName
@@ -37,37 +43,37 @@ const compareModel = (model, canonical) => {
     };
 
     const differenceRelationships = (a, b) => {
-        const names = b.map(({fromNode, toNode}) => normalize(fromNode.name + toNode.name));
-        return a.filter(({fromNode, toNode}) => !names.includes(normalize(fromNode.name + toNode.name)));
+        const keys = b.map(({fromNode, toNode}) => relationshipKey(fromNode, toNode));
+        return a.filter(({fromNode, toNode}) => !keys.includes(relationshipKey(fromNode, toNode)));
     };
 
     const intersectionRelationships = (a, b, invert) => {
-        const names = b.map(({fromNode, toNode}) => normalize(fromNode.name + toNode.name));
-        return a.filter(({fromNode, toNode}) => names.includes(normalize(
-            invert
-                ? toNode.name + fromNode.name
-                : fromNode.name + toNode.name
-        )));
+        const keys = b.map(({fromNode, toNode}) => relationshipKey(fromNode, toNode));
+        return a.filter(({fromNode, toNode}) => keys.includes(
+            invert ? relationshipKey(toNode, fromNode) : relationshipKey(fromNode, toNode)
+        ));
     };
 
     const correctlySigned = (relationships, cRelationships) => {
-        const isCorrect = (x, y) => (x > 0 && y > 0) || (x < 0 && y < 0) || (x === 0 && y === 0);
+        // Compare numeric signs: both positive, both negative, or both zero. Influences are
+        // strings in .mmp files, so go through toInfluence() rather than comparing raw values.
+        const isCorrect = (x, y) => Math.sign(toInfluence(x)) === Math.sign(toInfluence(y));
 
-        return relationships.filter(({fromNode, relationship}) => {
-            const name = normalize(fromNode.name + relationship.name);
-            return cRelationships.find(({fromNode: cFromNode, relationship: cRelationship}) => {
-                return name === normalize(cFromNode.name + relationship.name) && isCorrect(relationship.influence, cRelationship.influence);
-            });
+        return relationships.filter(({fromNode, toNode, relationship}) => {
+            const key = relationshipKey(fromNode, toNode);
+            return cRelationships.some(({fromNode: cFromNode, toNode: cToNode, relationship: cRelationship}) => (
+                key === relationshipKey(cFromNode, cToNode) && isCorrect(relationship.influence, cRelationship.influence)
+            ));
         });
     };
 
     const findReversedRelationships = ({extraRelationships, missingRelationships}) => {
         const reversedRelationships = intersectionRelationships(extraRelationships, missingRelationships, true);
-        const names = reversedRelationships.map(({fromNode, toNode}) => normalize(fromNode.name + toNode.name));
+        const keys = reversedRelationships.map(({fromNode, toNode}) => relationshipKey(fromNode, toNode));
         return {
             reversedRelationships,
-            updatedExtraRelationships: extraRelationships.filter(({fromNode, toNode}) => !names.includes(normalize(fromNode.name + toNode.name))),
-            updatedMissingRelationships: missingRelationships.filter(({fromNode, toNode}) => !names.includes(normalize(toNode.name + fromNode.name))),
+            updatedExtraRelationships: extraRelationships.filter(({fromNode, toNode}) => !keys.includes(relationshipKey(fromNode, toNode))),
+            updatedMissingRelationships: missingRelationships.filter(({fromNode, toNode}) => !keys.includes(relationshipKey(toNode, fromNode))),
         };
     };
 
