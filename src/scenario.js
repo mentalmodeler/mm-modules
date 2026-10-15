@@ -1,4 +1,5 @@
 import {abs, max, multiply, subtract, tanh} from 'mathjs';
+import {toInfluence} from './influence';
 
 const sigm = (x) => 1 / (1 + Math.exp(-x));
 const getWeightMatrix = (concepts) => {
@@ -9,7 +10,7 @@ const getWeightMatrix = (concepts) => {
             }
             else {
                 const relationship = relationships.find(({id}) => id === conceptId);
-                return relationship ? parseFloat(relationship.influence) : 0;
+                return relationship ? toInfluence(relationship.influence) : 0;
             }
         });
     });
@@ -49,7 +50,7 @@ const converge = (initVec, weightMat, clampFn, influences = []) => {
 const runScenario = ({concepts}, {concepts: scenarioConcepts = []}, clampFn = sigm) => {
     const vecSize = concepts.length;
     const initVec = new Array(vecSize).fill(1);
-    const influences = scenarioConcepts.map(({influence}) => parseFloat(influence));
+    const influences = scenarioConcepts.map(({influence}) => toInfluence(influence));
     const weightMat = getWeightMatrix(concepts);
     const steadyVec = converge(initVec, weightMat, clampFn);
     const scenarioVec = converge(initVec, weightMat, clampFn, influences);

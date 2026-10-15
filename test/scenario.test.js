@@ -57,3 +57,24 @@ describe('runScenario convergence', () => {
         result.forEach(({ influence }) => expect(Number.isFinite(influence)).toBe(true));
     });
 });
+
+describe('blank influences', () => {
+    it('reads a blank or missing influence as a weight of 0, not NaN', () => {
+        const concepts = [
+            concept('a', 'A', [rel('b', ''), { id: 'c' }]),
+            concept('b', 'B'),
+            concept('c', 'C'),
+        ];
+        expect(getWeightMatrix(concepts)).toEqual([
+            [0, 0, 0],
+            [0, 0, 0],
+            [0, 0, 0],
+        ]);
+    });
+
+    it('still returns finite results when one relationship has no value', () => {
+        const model = { concepts: [concept('a', 'A', [rel('b', '')]), concept('b', 'B', [rel('a', 1)])] };
+        const result = runScenario(model, { concepts: [{ influence: '' }, { influence: 1 }] });
+        result.forEach(({ influence }) => expect(Number.isFinite(influence)).toBe(true));
+    });
+});
