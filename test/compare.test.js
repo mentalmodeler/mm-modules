@@ -118,3 +118,34 @@ describe('compareModels with malformed models', () => {
         expect(result.nodes.missing).toEqual([]);
     });
 });
+
+describe('compareModels with dangling relationships', () => {
+    const compare = (canon, student) =>
+        compareModels({ modelsJSON: [{ id: 'c', ...canon }, { id: 's', ...student }], canonicalId: 'c' }).s;
+
+    it('does not match a dangling edge in one model with a dangling edge in the other', () => {
+        const canon = { concepts: [concept('a', 'A', [rel('zzz', 1)])] };
+        const student = { concepts: [concept('a', 'A', [rel('yyy', 1)])] };
+        const result = compare(canon, student);
+        expect(result.relationships.correctlySigned).toEqual([]);
+        expect(result.relationships.extra).toEqual([]);
+        expect(result.relationships.missing).toEqual([]);
+        expect(result.score).toBe(0);
+    });
+
+    it('does not count a dangling student edge as extra', () => {
+        const canon = { concepts: [concept('a', 'A', [rel('b', 1)]), concept('b', 'B')] };
+        const student = { concepts: [concept('a', 'A', [rel('b', 1), rel('ghost', 1)]), concept('b', 'B')] };
+        const result = compare(canon, student);
+        expect(result.relationships.extra).toEqual([]);
+        expect(result.score).toBe(1);
+    });
+
+    it('does not count a dangling canonical edge as missing', () => {
+        const canon = { concepts: [concept('a', 'A', [rel('b', 1), rel('ghost', 1)]), concept('b', 'B')] };
+        const student = { concepts: [concept('a', 'A', [rel('b', 1)]), concept('b', 'B')] };
+        const result = compare(canon, student);
+        expect(result.relationships.missing).toEqual([]);
+        expect(result.score).toBe(1);
+    });
+});

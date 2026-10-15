@@ -16,7 +16,9 @@ const compareModel = (model, canonical) => {
     }
 
     const getRelationships = ({name: fromName, id: fromId, relationships}, _, nodes) => (
-        (relationships || []).map(({name, id, influence}) => ({
+        (relationships || [])
+            .filter(({id}) => nodes.some((node) => node.id === id))
+            .map(({name, id, influence}) => ({
             fromNode: {
                 id: fromId,
                 name: fromName
