@@ -52,17 +52,20 @@ export const importCSV = (rows = []) => {
     const [headerRow = [], ...dataRows] = rows;
     const [name = '', ...names] = headerRow;
 
-    const concepts = names
-        .map((conceptName, id) => (conceptName ? { id, name: `${conceptName}`.trim(), relationships: [] } : null))
-        .filter(Boolean);
+    // Keep a slot per header column (null for blank headers) so row/column positions
+    // stay aligned with the CSV; only drop the blanks once the matrix has been read.
+    const slots = names.map((conceptName, id) => {
+        const trimmed = `${conceptName ?? ''}`.trim();
+        return trimmed ? { id, name: trimmed, relationships: [] } : null;
+    });
 
     dataRows.forEach((row, rowIndex) => {
-        const concept = concepts[rowIndex];
+        const concept = slots[rowIndex];
         if (!concept) {
             return;
         }
         row.slice(1).forEach((value, columnIndex) => {
-            const relatedConcept = concepts[columnIndex];
+            const relatedConcept = slots[columnIndex];
             const influence = parseFloat(value);
             if (relatedConcept && !isNaN(influence) && influence) {
                 concept.relationships.push({ id: relatedConcept.id, name: relatedConcept.name, influence });
@@ -70,6 +73,7 @@ export const importCSV = (rows = []) => {
         });
     });
 
+    const concepts = slots.filter(Boolean);
     layoutConcepts(concepts);
 
     return { info: { name }, concepts };
