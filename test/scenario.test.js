@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { getWeightMatrix, runScenario, tanh } from '../src/scenario';
+import { describe, expect, it, vi } from 'vitest';
+import { converge, getWeightMatrix, runScenario, sigm, tanh } from '../src/scenario';
 import { concept, rel } from './fixtures';
 
 describe('getWeightMatrix', () => {
@@ -93,5 +93,28 @@ describe('runScenario direction of influence', () => {
         const [a] = runScenario(chain, { concepts: [{ influence: 0 }, { influence: 1 }] });
         expect(a.id).toBe('a');
         expect(a.influence).toBeCloseTo(0, 10);
+    });
+});
+
+describe('converge when the cap is hit', () => {
+    // Every concept inhibits every other with weight -1: the unclamped state flips between
+    // two values forever, so where the loop happens to stop decides what it returns.
+    const n = 8;
+    const ids = Array.from({ length: n }, (_, i) => `n${i}`);
+    const mesh = ids.map((id) => concept(id, id, ids.filter((other) => other !== id).map((other) => rel(other, -1))));
+
+    it('returns the same state whether the cap is odd or even', () => {
+        const weights = getWeightMatrix(mesh);
+        const init = new Array(n).fill(1);
+        const even = converge(init, weights, sigm, [], 100);
+        const odd = converge(init, weights, sigm, [], 101);
+        even.forEach((value, i) => expect(value).toBeCloseTo(odd[i], 6));
+    });
+
+    it('warns that the result did not settle', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        converge(new Array(n).fill(1), getWeightMatrix(mesh), sigm, [], 100);
+        expect(warn).toHaveBeenCalledTimes(1);
+        warn.mockRestore();
     });
 });

@@ -18,16 +18,17 @@ const getWeightMatrix = (concepts) => {
 
 const MAX_ITERATIONS = 10000;
 
-const converge = (initVec, weightMat, clampFn, influences = []) => {
+const converge = (initVec, weightMat, clampFn, influences = [], maxIterations = MAX_ITERATIONS) => {
     const epsilon = 0.00001;
     let previousVec = initVec;
     let currentVec;
     let diff = 1;
     let iterations = 0;
+    let priorVec = initVec;
 
     // Some feedback loops (e.g. tanh with weights whose product is +/-1) approach their
     // fixed point only like 1/sqrt(n), so epsilon alone is not a safe stopping rule.
-    while (diff > epsilon && iterations < MAX_ITERATIONS) {
+    while (diff > epsilon && iterations < maxIterations) {
         iterations += 1;
         // vector x matrix (row = source): each concept collects from the concepts that point at it.
         const intermediateVec = multiply(previousVec, weightMat);
@@ -42,7 +43,15 @@ const converge = (initVec, weightMat, clampFn, influences = []) => {
         });
         
         diff = max(abs(subtract(currentVec, previousVec)));
+        priorVec = previousVec;
         previousVec = currentVec;
+    }
+
+    if (diff > epsilon) {
+        // Hit the cap without settling. Typically the state is flipping between two values,
+        // so which one we stopped on is arbitrary; their mean doesn't depend on that.
+        console.warn(`mm-modules: scenario did not converge after ${maxIterations} iterations; returning the mean of the last two states.`);
+        return currentVec.map((x, i) => (x + priorVec[i]) / 2);
     }
 
     return currentVec;
@@ -70,4 +79,4 @@ const runScenario = ({concepts}, {concepts: scenarioConcepts = []}, clampFn = si
         .filter((_, i) => !influences[i]);
 };
 
-export {getWeightMatrix, runScenario, sigm, tanh};
+export {converge, getWeightMatrix, runScenario, sigm, tanh};
