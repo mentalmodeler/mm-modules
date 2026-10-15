@@ -15,8 +15,16 @@
     "url": "https://github.com/mentalmodeler/mm-modules/issues"
   },
   "homepage": "https://github.com/mentalmodeler/mm-modules#readme",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
   "dependencies": {
     "d3-force": "^3.0.0",
     "mathjs": "^9.0.0"
+  },
+  "devDependencies": {
+    "jsdom": "^30.1.3",
+    "vitest": "^5.0.5"
   }
 }
