@@ -48,4 +48,29 @@ describe('importCSV', () => {
         expect(concepts[0].relationships).toEqual([{ id: 2, name: 'C', influence: 0.5 }]);
         expect(concepts[1].relationships).toEqual([{ id: 0, name: 'A', influence: 1 }]);
     });
+
+    it('keeps relationships on the right concepts when a blank line sits between data rows', () => {
+        // Papa.parse without skipEmptyLines turns a blank line into [''].
+        const withBlankLine = [
+            ['M', 'A', 'B', 'C'],
+            ['A', '', '1', ''],
+            [''],
+            ['B', '', '', '1'],
+            ['C', '1', '', ''],
+        ];
+        const { concepts } = importCSV(withBlankLine);
+        const edges = concepts.flatMap(({ name, relationships }) => relationships.map((r) => `${name}->${r.name}`));
+        expect(edges).toEqual(['A->B', 'B->C', 'C->A']);
+    });
+
+    it('keeps a concept\'s row when the header has a blank cell and only the named rows are present', () => {
+        const rowsWithoutBlank = [
+            ['M', 'A', '', 'C'],
+            ['A', '', '', '0.5'],
+            ['C', '1', '', ''],
+        ];
+        const { concepts } = importCSV(rowsWithoutBlank);
+        const edges = concepts.flatMap(({ name, relationships }) => relationships.map((r) => `${name}->${r.name}`));
+        expect(edges).toEqual(['A->C', 'C->A']);
+    });
 });

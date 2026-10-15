@@ -41,7 +41,9 @@ fuzzy values like `"H+"`/`"M-"` that get converted to numbers).
 - **scenario.js** — `runScenario`: simulates an FCM by iterating `stateVector × weightMatrix`
   (row = source, so each concept collects from the concepts that point at it, matching the legacy
   `mentalmodeler-scenario`) to convergence (`converge`, epsilon-based fixed point, capped at
-  10000 iterations so non-settling loops can't hang) with a squashing function (`sigm` or
+  10000 iterations so non-settling loops can't hang; if the cap is hit it `console.warn`s and returns
+  the mean of the last two states, since a flipping loop's result would otherwise depend on the
+  cap's parity) with a squashing function (`sigm` or
   `tanh`), once at baseline and once with scenario concepts clamped to fixed influence values.
   Returns the delta per concept between the clamped and baseline steady states, excluding
   concepts that were themselves clamped as scenario inputs. `sigm` and `tanh` (the two squashing
@@ -78,7 +80,9 @@ fuzzy values like `"H+"`/`"M-"` that get converted to numbers).
   no notion of hierarchy or edge direction, so cycles settle naturally instead of fighting the
   algorithm. Positions are normalized (translated) after simulation so all coordinates are
   positive, since consuming apps' canvases start at the origin. A blank header cell is skipped
-  without shifting other rows/columns; concept ids are the original header column index.
+  without shifting other rows/columns, and data rows are matched to concepts by their row label
+  (falling back to position), so blank lines in the file don't misplace later rows; concept ids are
+  the original header column index.
 
 ## Working in this repo
 

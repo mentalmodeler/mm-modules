@@ -59,11 +59,26 @@ export const importCSV = (rows = []) => {
         return trimmed ? { id, name: trimmed, relationships: [] } : null;
     });
 
+    // Match each data row to its concept by the row label (first column), taking concepts of
+    // the same name in order, so stray blank lines in the file don't shift later rows onto the
+    // wrong concept. A row whose label matches nothing falls back to its position.
+    const used = new Set();
+    const findConceptForRow = (row, rowIndex) => {
+        const label = `${row[0] ?? ''}`.trim().toLowerCase();
+        if (!label) {
+            return null;
+        }
+        const byLabel = slots.find((slot) => slot && !used.has(slot) && slot.name.toLowerCase() === label);
+        const concept = byLabel || slots[rowIndex];
+        return concept && !used.has(concept) ? concept : null;
+    };
+
     dataRows.forEach((row, rowIndex) => {
-        const concept = slots[rowIndex];
+        const concept = findConceptForRow(row, rowIndex);
         if (!concept) {
             return;
         }
+        used.add(concept);
         row.slice(1).forEach((value, columnIndex) => {
             const relatedConcept = slots[columnIndex];
             const influence = parseFloat(value);
