@@ -4,6 +4,14 @@ const NODE_SIZE = 125;
 const SIMULATION_TICKS = 300;
 const MARGIN = 40;
 
+// A cell is an influence only if its whole trimmed text is a finite number; parseFloat would
+// accept "1abc" as 1 and "Infinity" as Infinity. Anything else reads as 0 (skipped).
+const parseCell = (value) => {
+    const text = `${value ?? ''}`.trim();
+    const parsed = text === '' ? NaN : Number(text);
+    return Number.isFinite(parsed) ? parsed : 0;
+};
+
 // Lays out concepts with a force simulation rather than a hierarchical layout
 // (e.g. dagre): FCMs are built around feedback loops, so a layered/DAG-style
 // layout has to fake-reverse edges to impose a hierarchy, producing tangled
@@ -81,8 +89,8 @@ export const importCSV = (rows = []) => {
         used.add(concept);
         row.slice(1).forEach((value, columnIndex) => {
             const relatedConcept = slots[columnIndex];
-            const influence = parseFloat(value);
-            if (relatedConcept && !isNaN(influence) && influence) {
+            const influence = parseCell(value);
+            if (relatedConcept && influence) {
                 concept.relationships.push({ id: relatedConcept.id, name: relatedConcept.name, influence });
             }
         });

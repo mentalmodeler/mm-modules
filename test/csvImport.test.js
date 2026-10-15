@@ -73,4 +73,31 @@ describe('importCSV', () => {
         const edges = concepts.flatMap(({ name, relationships }) => relationships.map((r) => `${name}->${r.name}`));
         expect(edges).toEqual(['A->C', 'C->A']);
     });
+
+    it('skips cells that are not wholly a finite number', () => {
+        const messy = [
+            ['M', 'A', 'B', 'C', 'D'],
+            ['A', '', '1abc', 'Infinity', 'H+'],
+            ['B', '', '', '', ''],
+            ['C', '', '', '', ''],
+            ['D', '', '', '', ''],
+        ];
+        const { concepts } = importCSV(messy);
+        expect(concepts[0].relationships).toEqual([]);
+    });
+
+    it('imports plain numeric cells as written, trimmed and unclamped', () => {
+        const numeric = [
+            ['M', 'A', 'B', 'C'],
+            ['A', '', ' 0.5 ', '5'],
+            ['B', '-2', '', ''],
+            ['C', '', '', ''],
+        ];
+        const { concepts } = importCSV(numeric);
+        expect(concepts[0].relationships).toEqual([
+            { id: 1, name: 'B', influence: 0.5 },
+            { id: 2, name: 'C', influence: 5 },
+        ]);
+        expect(concepts[1].relationships).toEqual([{ id: 0, name: 'A', influence: -2 }]);
+    });
 });
