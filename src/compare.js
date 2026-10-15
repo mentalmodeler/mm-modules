@@ -1,7 +1,34 @@
-// import {runScenario} from './scenario';
 import {getMetrics} from './metrics';
+import {toInfluence} from './influence';
 
-const normalize = name => name.toLowerCase().trim(); 
+const normalize = name => String(name ?? '').toLowerCase().trim();
+
+// Relationships are matched by their (from, to) names, each normalized on its own, so
+// stray whitespace/case in one name can't bleed into the other and "ab"+"c" can't
+// collide with "a"+"bc".
+const relationshipKey = (fromNode, toNode) => `${normalize(fromNode.name)}\u0000${normalize(toNode.name)}`;
+
+// Student files are untrusted: a list may be missing, null or not an array, and its entries
+// may be null. Drop what isn't an object so one bad file can't stop the whole batch.
+const objectsOf = (list) => (Array.isArray(list) ? list : []).filter((item) => item && typeof item === 'object');
+const cleanConcepts = (concepts) => objectsOf(concepts).map((concept) => ({
+    ...concept,
+    relationships: objectsOf(concept.relationships),
+}));
+
+// Keep the first relationship for each (from, to) key. Two concepts can share a normalized
+// name (e.g. "A" and "a "), and each copy would otherwise match the other model's edge.
+const uniqueRelationships = (relationships) => {
+    const seen = new Set();
+    return relationships.filter(({fromNode, toNode}) => {
+        const key = relationshipKey(fromNode, toNode);
+        if (seen.has(key)) {
+            return false;
+        }
+        seen.add(key);
+        return true;
+    });
+};
 
 const compareModel = (model, canonical) => {
     const getNode = ({name, id}) => ({name: name, id: id});
@@ -11,7 +38,9 @@ const compareModel = (model, canonical) => {
     }
 
     const getRelationships = ({name: fromName, id: fromId, relationships}, _, nodes) => (
-        relationships && relationships.map(({name, id, influence}) => ({
+        (relationships || [])
+            .filter(({id}) => nodes.some((node) => node.id === id))
+            .map(({name, id, influence}) => ({
             fromNode: {
                 id: fromId,
                 name: fromName
@@ -37,44 +66,46 @@ const compareModel = (model, canonical) => {
     };
 
     const differenceRelationships = (a, b) => {
-        const names = b.map(({fromNode, toNode}) => normalize(fromNode.name + toNode.name));
-        return a.filter(({fromNode, toNode}) => !names.includes(normalize(fromNode.name + toNode.name)));
+        const keys = b.map(({fromNode, toNode}) => relationshipKey(fromNode, toNode));
+        return a.filter(({fromNode, toNode}) => !keys.includes(relationshipKey(fromNode, toNode)));
     };
 
     const intersectionRelationships = (a, b, invert) => {
-        const names = b.map(({fromNode, toNode}) => normalize(fromNode.name + toNode.name));
-        return a.filter(({fromNode, toNode}) => names.includes(normalize(
-            invert
-                ? toNode.name + fromNode.name
-                : fromNode.name + toNode.name
-        )));
+        const keys = b.map(({fromNode, toNode}) => relationshipKey(fromNode, toNode));
+        return a.filter(({fromNode, toNode}) => keys.includes(
+            invert ? relationshipKey(toNode, fromNode) : relationshipKey(fromNode, toNode)
+        ));
     };
 
     const correctlySigned = (relationships, cRelationships) => {
-        const isCorrect = (x, y) => (x > 0 && y > 0) || (x < 0 && y < 0) || (x === 0 && y === 0);
+        // Compare numeric signs: both positive, both negative, or both zero. Influences are
+        // strings in .mmp files, so go through toInfluence() rather than comparing raw values.
+        const isCorrect = (x, y) => Math.sign(toInfluence(x)) === Math.sign(toInfluence(y));
 
-        return relationships.filter(({fromNode, relationship}) => {
-            const name = normalize(fromNode.name + relationship.name);
-            return cRelationships.find(({fromNode: cFromNode, relationship: cRelationship}) => {
-                return name === normalize(cFromNode.name + relationship.name) && isCorrect(relationship.influence, cRelationship.influence);
-            });
+        return relationships.filter(({fromNode, toNode, relationship}) => {
+            const key = relationshipKey(fromNode, toNode);
+            return cRelationships.some(({fromNode: cFromNode, toNode: cToNode, relationship: cRelationship}) => (
+                key === relationshipKey(cFromNode, cToNode) && isCorrect(relationship.influence, cRelationship.influence)
+            ));
         });
     };
 
     const findReversedRelationships = ({extraRelationships, missingRelationships}) => {
         const reversedRelationships = intersectionRelationships(extraRelationships, missingRelationships, true);
-        const names = reversedRelationships.map(({fromNode, toNode}) => normalize(fromNode.name + toNode.name));
+        const keys = reversedRelationships.map(({fromNode, toNode}) => relationshipKey(fromNode, toNode));
         return {
             reversedRelationships,
-            updatedExtraRelationships: extraRelationships.filter(({fromNode, toNode}) => !names.includes(normalize(fromNode.name + toNode.name))),
-            updatedMissingRelationships: missingRelationships.filter(({fromNode, toNode}) => !names.includes(normalize(toNode.name + fromNode.name))),
+            updatedExtraRelationships: extraRelationships.filter(({fromNode, toNode}) => !keys.includes(relationshipKey(fromNode, toNode))),
+            updatedMissingRelationships: missingRelationships.filter(({fromNode, toNode}) => !keys.includes(relationshipKey(toNode, fromNode))),
         };
     };
 
-    const canonicalNodes = canonical.concepts.map(getNode);
-    const modelNodes = model.concepts.map(getNode);
-    const canonicalRelationships = canonical.concepts.flatMap(getRelationships);
-    const modelRelationships = model.concepts.flatMap(getRelationships);
+    const canonicalConcepts = cleanConcepts(canonical.concepts);
+    const modelConcepts = cleanConcepts(model.concepts);
+    const canonicalNodes = canonicalConcepts.map(getNode);
+    const modelNodes = modelConcepts.map(getNode);
+    const canonicalRelationships = uniqueRelationships(canonicalConcepts.flatMap(getRelationships));
+    const modelRelationships = uniqueRelationships(modelConcepts.flatMap(getRelationships));
     const extraNodes = differenceNodes(modelNodes, canonicalNodes);
     const missingNodes = differenceNodes(canonicalNodes, modelNodes);
     const presentNodes = intersectionNodes(modelNodes, canonicalNodes);
@@ -103,58 +134,19 @@ const compareModel = (model, canonical) => {
     };
 };
 
-// not comapring scenarios anymore - JME 2021/01/31
-// const compareScenario = (model, scenario, correctResults) => {
-//     const getPoints = concept => {
-//         const sConcept = scenario.concepts.find(({name}) => normalize(name) === normalize(concept.name));
-//         return sConcept ? sConcept.points : 0;
-//     };
-//     const wrapConceptWithPoints = concept => {
-//         const points = getPoints(concept);
-//         return { ...concept, points };
-//     };
-//     const isCorrect = result => {
-//         const cResult = correctResults.find(({name}) => normalize(name) === normalize(result.name));
-//         return cResult && result.influence === cResult.influence;
-//     };
-//     const results = runScenario(model, scenario);
-//     const correct = results.filter(isCorrect).map(wrapConceptWithPoints);
-//     const incorrect = results.filter(concept => !isCorrect(concept)).map(wrapConceptWithPoints);
-//     const score = correct.length ? correct.map(({points}) => points).reduce((score, points) => score + points) : 0;
-
-//     return {
-//         score: score,
-//         correct: correct,
-//         incorrect: incorrect,
-//     };
-// };
-
 const compareModels = ({modelsJSON, canonicalId, scenario}) => {
     const canonical = modelsJSON.find(model => model.id === canonicalId);
-    
-    // not running the scenario anymore - JME 2021/01/31
-    // const correctScenarioResult = runScenario(canonical, scenario);
-    
+
     const modelsToCompare = modelsJSON.filter(model => model.id !== canonicalId);
     return  modelsToCompare.reduce(
         (acc, model) => ({
             ...acc,
             [model.id]: {
                 ...compareModel(model, canonical),
-                ...getMetrics({concepts: model.concepts}),
+                ...getMetrics({concepts: cleanConcepts(model.concepts)}),
             }
         })
     , {});
-    
-    // modelsToCompare.forEach(model => {
-    //     let result = compareModel(model, canonical);
-    //     // not running the scenario anymore - JME 2021/01/31
-    //     // const scenarioResult = compareScenario(model, scenario, correctScenarioResult);
-    //     // result.scenario = scenarioResult;
-    //     // result.score += scenarioResult.score;
-    //     results[model.id] = result;
-    // });
-    // return results;
 };
 
-export {compareModels, compareModel, /*compareScenario, */normalize as normalizeName};
+export {compareModels, compareModel, normalize as normalizeName};

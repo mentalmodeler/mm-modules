@@ -1,6 +1,5 @@
+import {makeId} from './id';
 const NESTED_LISTS = ['relationships', 'concepts', 'properties'];
-const getChars = (length = 4) => Math.random().toString(16).slice(-(length - 15));
-const makeId = () => `${getChars(8)}-${getChars()}-${getChars()}-${getChars()}-${getChars(12)}`
 
 const replaceFuzzyInfluence = (influence) => {
     if (isNaN(parseFloat(influence))) {
@@ -32,8 +31,11 @@ const parseMMP = (mmp) => {
         }
         else {
             const js = JSON.parse(mmp);
+            if (!js || typeof js !== 'object' || Array.isArray(js)) {
+                throw new Error('Not a model object.');
+            }
             if (!js?.info?.id) {
-                js.info.id = makeId();
+                js.info = {...js.info, id: makeId()};
             }
             return js;
         }
@@ -48,7 +50,11 @@ const parseXML = (xmlString, excludeArray = []) => {
     let json = {};
     let parser = new DOMParser();
     let xmlDoc = parser.parseFromString(xmlString, 'application/xml');
-    let childNodes = xmlDoc.firstChild.childNodes;
+    if (!xmlDoc.documentElement || xmlDoc.getElementsByTagName('parsererror').length) {
+        throw new Error('Invalid XML.');
+    }
+    // documentElement, not firstChild: a comment or processing instruction can precede the root.
+    let childNodes = xmlDoc.documentElement.childNodes;
 
     childNodes.forEach((node) => {
         switch(node.localName) {
@@ -77,7 +83,9 @@ const parseXML = (xmlString, excludeArray = []) => {
             break;
         }
     });
-    console.log('JSON from XML:', json);
+    if (!json.info && excludeArray.indexOf('info') === -1) {
+        json.info = {id: makeId()};
+    }
     return json;
 };
 

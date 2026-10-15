@@ -4,6 +4,14 @@ const NODE_SIZE = 125;
 const SIMULATION_TICKS = 300;
 const MARGIN = 40;
 
+// A cell is an influence only if its whole trimmed text is a finite number; parseFloat would
+// accept "1abc" as 1 and "Infinity" as Infinity. Anything else reads as 0 (skipped).
+const parseCell = (value) => {
+    const text = `${value ?? ''}`.trim();
+    const parsed = text === '' ? NaN : Number(text);
+    return Number.isFinite(parsed) ? parsed : 0;
+};
+
 // Lays out concepts with a force simulation rather than a hierarchical layout
 // (e.g. dagre): FCMs are built around feedback loops, so a layered/DAG-style
 // layout has to fake-reverse edges to impose a hierarchy, producing tangled
@@ -52,24 +60,43 @@ export const importCSV = (rows = []) => {
     const [headerRow = [], ...dataRows] = rows;
     const [name = '', ...names] = headerRow;
 
-    const concepts = names
-        .map((conceptName, id) => (conceptName ? { id, name: `${conceptName}`.trim(), relationships: [] } : null))
-        .filter(Boolean);
+    // Keep a slot per header column (null for blank headers) so row/column positions
+    // stay aligned with the CSV; only drop the blanks once the matrix has been read.
+    const slots = names.map((conceptName, id) => {
+        const trimmed = `${conceptName ?? ''}`.trim();
+        return trimmed ? { id, name: trimmed, relationships: [] } : null;
+    });
+
+    // Match each data row to its concept by the row label (first column), taking concepts of
+    // the same name in order, so stray blank lines in the file don't shift later rows onto the
+    // wrong concept. A row whose label matches nothing falls back to its position.
+    const used = new Set();
+    const findConceptForRow = (row, rowIndex) => {
+        const label = `${row[0] ?? ''}`.trim().toLowerCase();
+        if (!label) {
+            return null;
+        }
+        const byLabel = slots.find((slot) => slot && !used.has(slot) && slot.name.toLowerCase() === label);
+        const concept = byLabel || slots[rowIndex];
+        return concept && !used.has(concept) ? concept : null;
+    };
 
     dataRows.forEach((row, rowIndex) => {
-        const concept = concepts[rowIndex];
+        const concept = findConceptForRow(row, rowIndex);
         if (!concept) {
             return;
         }
+        used.add(concept);
         row.slice(1).forEach((value, columnIndex) => {
-            const relatedConcept = concepts[columnIndex];
-            const influence = parseFloat(value);
-            if (relatedConcept && !isNaN(influence) && influence) {
+            const relatedConcept = slots[columnIndex];
+            const influence = parseCell(value);
+            if (relatedConcept && influence) {
                 concept.relationships.push({ id: relatedConcept.id, name: relatedConcept.name, influence });
             }
         });
     });
 
+    const concepts = slots.filter(Boolean);
     layoutConcepts(concepts);
 
     return { info: { name }, concepts };
