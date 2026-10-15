@@ -1,6 +1,5 @@
+import {makeId} from './id';
 const NESTED_LISTS = ['relationships', 'concepts', 'properties'];
-const getChars = (length = 4) => Math.random().toString(16).slice(-(length - 15));
-const makeId = () => `${getChars(8)}-${getChars()}-${getChars()}-${getChars()}-${getChars(12)}`
 
 const replaceFuzzyInfluence = (influence) => {
     if (isNaN(parseFloat(influence))) {
@@ -33,7 +32,7 @@ const parseMMP = (mmp) => {
         else {
             const js = JSON.parse(mmp);
             if (!js?.info?.id) {
-                js.info.id = makeId();
+                js.info = {...js.info, id: makeId()};
             }
             return js;
         }
@@ -77,7 +76,6 @@ const parseXML = (xmlString, excludeArray = []) => {
             break;
         }
     });
-    console.log('JSON from XML:', json);
     return json;
 };
 
