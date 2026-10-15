@@ -15,13 +15,19 @@ const getWeightMatrix = (concepts) => {
     });
 };
 
+const MAX_ITERATIONS = 10000;
+
 const converge = (initVec, weightMat, clampFn, influences = []) => {
     const epsilon = 0.00001;
     let previousVec = initVec;
     let currentVec;
     let diff = 1;
+    let iterations = 0;
 
-    while (diff > epsilon) {
+    // Some feedback loops (e.g. tanh with weights whose product is +/-1) approach their
+    // fixed point only like 1/sqrt(n), so epsilon alone is not a safe stopping rule.
+    while (diff > epsilon && iterations < MAX_ITERATIONS) {
+        iterations += 1;
         const intermediateVec = multiply(weightMat, previousVec);
 
         currentVec = intermediateVec.map((x, i) => {

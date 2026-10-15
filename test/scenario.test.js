@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getWeightMatrix, runScenario } from '../src/scenario';
+import { getWeightMatrix, runScenario, tanh } from '../src/scenario';
 import { concept, rel } from './fixtures';
 
 describe('getWeightMatrix', () => {
@@ -46,5 +46,14 @@ describe('runScenario', () => {
         const [first] = runScenario(cyclic, { concepts: [{ influence: 1 }, { influence: 0 }, { influence: 0 }] });
         expect(first).toMatchObject({ id: 'b', name: 'B' });
         expect(typeof first.influence).toBe('number');
+    });
+});
+
+describe('runScenario convergence', () => {
+    it('returns instead of looping forever on a tanh feedback loop that does not settle', () => {
+        const model = { concepts: [concept('a', 'A', [rel('b', 1)]), concept('b', 'B', [rel('a', -1)])] };
+        const result = runScenario(model, { concepts: [] }, tanh);
+        expect(result).toHaveLength(2);
+        result.forEach(({ influence }) => expect(Number.isFinite(influence)).toBe(true));
     });
 });
