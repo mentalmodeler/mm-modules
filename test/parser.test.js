@@ -75,4 +75,14 @@ describe('parseMMP (XML)', () => {
         expect(result.info.id).toMatch(ID);
         expect(result.concepts).toHaveLength(1);
     });
+
+    it('alerts and returns undefined for malformed XML', () => {
+        expect(parseMMP('<?xml version="1.0"?><mentalmodeler><concepts><concept>')).toBeUndefined();
+        expect(alert).toHaveBeenCalledTimes(1);
+    });
+
+    it('reads the root element even when a comment precedes it', () => {
+        const withComment = `<?xml version="1.0"?><!-- exported --><mentalmodeler><info><name>Pond</name></info></mentalmodeler>`;
+        expect(parseMMP(withComment).info.name).toBe('Pond');
+    });
 });

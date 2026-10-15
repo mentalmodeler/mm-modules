@@ -50,7 +50,11 @@ const parseXML = (xmlString, excludeArray = []) => {
     let json = {};
     let parser = new DOMParser();
     let xmlDoc = parser.parseFromString(xmlString, 'application/xml');
-    let childNodes = xmlDoc.firstChild.childNodes;
+    if (!xmlDoc.documentElement || xmlDoc.getElementsByTagName('parsererror').length) {
+        throw new Error('Invalid XML.');
+    }
+    // documentElement, not firstChild: a comment or processing instruction can precede the root.
+    let childNodes = xmlDoc.documentElement.childNodes;
 
     childNodes.forEach((node) => {
         switch(node.localName) {
