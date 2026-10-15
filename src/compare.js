@@ -1,4 +1,3 @@
-// import {runScenario} from './scenario';
 import {getMetrics} from './metrics';
 import {toInfluence} from './influence';
 
@@ -109,38 +108,9 @@ const compareModel = (model, canonical) => {
     };
 };
 
-// not comapring scenarios anymore - JME 2021/01/31
-// const compareScenario = (model, scenario, correctResults) => {
-//     const getPoints = concept => {
-//         const sConcept = scenario.concepts.find(({name}) => normalize(name) === normalize(concept.name));
-//         return sConcept ? sConcept.points : 0;
-//     };
-//     const wrapConceptWithPoints = concept => {
-//         const points = getPoints(concept);
-//         return { ...concept, points };
-//     };
-//     const isCorrect = result => {
-//         const cResult = correctResults.find(({name}) => normalize(name) === normalize(result.name));
-//         return cResult && result.influence === cResult.influence;
-//     };
-//     const results = runScenario(model, scenario);
-//     const correct = results.filter(isCorrect).map(wrapConceptWithPoints);
-//     const incorrect = results.filter(concept => !isCorrect(concept)).map(wrapConceptWithPoints);
-//     const score = correct.length ? correct.map(({points}) => points).reduce((score, points) => score + points) : 0;
-
-//     return {
-//         score: score,
-//         correct: correct,
-//         incorrect: incorrect,
-//     };
-// };
-
 const compareModels = ({modelsJSON, canonicalId, scenario}) => {
     const canonical = modelsJSON.find(model => model.id === canonicalId);
-    
-    // not running the scenario anymore - JME 2021/01/31
-    // const correctScenarioResult = runScenario(canonical, scenario);
-    
+
     const modelsToCompare = modelsJSON.filter(model => model.id !== canonicalId);
     return  modelsToCompare.reduce(
         (acc, model) => ({
@@ -151,16 +121,6 @@ const compareModels = ({modelsJSON, canonicalId, scenario}) => {
             }
         })
     , {});
-    
-    // modelsToCompare.forEach(model => {
-    //     let result = compareModel(model, canonical);
-    //     // not running the scenario anymore - JME 2021/01/31
-    //     // const scenarioResult = compareScenario(model, scenario, correctScenarioResult);
-    //     // result.scenario = scenarioResult;
-    //     // result.score += scenarioResult.score;
-    //     results[model.id] = result;
-    // });
-    // return results;
 };
 
-export {compareModels, compareModel, /*compareScenario, */normalize as normalizeName};
+export {compareModels, compareModel, normalize as normalizeName};
