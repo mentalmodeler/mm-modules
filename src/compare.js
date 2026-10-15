@@ -8,6 +8,14 @@ const normalize = name => String(name ?? '').toLowerCase().trim();
 // collide with "a"+"bc".
 const relationshipKey = (fromNode, toNode) => `${normalize(fromNode.name)}\u0000${normalize(toNode.name)}`;
 
+// Student files are untrusted: a list may be missing, null or not an array, and its entries
+// may be null. Drop what isn't an object so one bad file can't stop the whole batch.
+const objectsOf = (list) => (Array.isArray(list) ? list : []).filter((item) => item && typeof item === 'object');
+const cleanConcepts = (concepts) => objectsOf(concepts).map((concept) => ({
+    ...concept,
+    relationships: objectsOf(concept.relationships),
+}));
+
 // Keep the first relationship for each (from, to) key. Two concepts can share a normalized
 // name (e.g. "A" and "a "), and each copy would otherwise match the other model's edge.
 const uniqueRelationships = (relationships) => {
@@ -92,8 +100,8 @@ const compareModel = (model, canonical) => {
         };
     };
 
-    const canonicalConcepts = canonical.concepts || [];
-    const modelConcepts = model.concepts || [];
+    const canonicalConcepts = cleanConcepts(canonical.concepts);
+    const modelConcepts = cleanConcepts(model.concepts);
     const canonicalNodes = canonicalConcepts.map(getNode);
     const modelNodes = modelConcepts.map(getNode);
     const canonicalRelationships = uniqueRelationships(canonicalConcepts.flatMap(getRelationships));
@@ -135,7 +143,7 @@ const compareModels = ({modelsJSON, canonicalId, scenario}) => {
             ...acc,
             [model.id]: {
                 ...compareModel(model, canonical),
-                ...getMetrics({concepts: model.concepts || []}),
+                ...getMetrics({concepts: cleanConcepts(model.concepts)}),
             }
         })
     , {});

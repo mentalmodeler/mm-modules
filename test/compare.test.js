@@ -186,3 +186,31 @@ describe('compareModels with duplicate concept names', () => {
         expect(result.score).toBe(-1);
     });
 });
+
+describe('compareModels with structurally broken models', () => {
+    const compare = (canon, student) =>
+        compareModels({ modelsJSON: [{ id: 'c', ...canon }, { id: 's', ...student }], canonicalId: 'c' }).s;
+    const canon = { concepts: [concept('a', 'A', [rel('b', 1)]), concept('b', 'B')] };
+
+    it('ignores null entries in a relationships list', () => {
+        const student = { concepts: [concept('a', 'A', [null, rel('b', 1)]), concept('b', 'B')] };
+        const result = compare(canon, student);
+        expect(result.score).toBe(1);
+        expect(result.numRelationships).toBe(1);
+    });
+
+    it('ignores null entries in a concepts list', () => {
+        const student = { concepts: [null, concept('a', 'A', [rel('b', 1)]), concept('b', 'B')] };
+        const result = compare(canon, student);
+        expect(result.score).toBe(1);
+        expect(result.numNodes).toBe(2);
+    });
+
+    it('treats concepts and relationships that are not arrays as empty', () => {
+        const student = { concepts: { a: 1 } };
+        expect(compare(canon, student).nodes.missing).toHaveLength(2);
+        const student2 = { concepts: [{ id: 'a', name: 'A', relationships: { b: 1 } }] };
+        expect(compare(canon, student2).relationships.missing).toHaveLength(1);
+    });
+});
+
