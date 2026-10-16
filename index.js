@@ -5,6 +5,7 @@ import {runScenario, sigm, tanh} from './src/scenario';
 import {getMetrics, getConceptsWithMetrics} from './src/metrics';
 import {importCSV} from './src/csvImport';
 import {makeId} from './src/id';
+import {findRelationship, getMatrixRows, toCompareRefModel} from './src/export';
 
 async function loadAndParse(file) {
     return parseMMP(await loadFile(file));
@@ -16,6 +17,8 @@ async function loadAndParseURL(url) {
 
 export {
     compareModels,
+    findRelationship,
+    getMatrixRows,
     loadFile, 
     loadURL, 
     loadAndParse, 
@@ -28,4 +31,5 @@ export {
     getMetrics,
     getConceptsWithMetrics,
     importCSV,
+    toCompareRefModel,
 };

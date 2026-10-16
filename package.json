@@ -4,6 +4,9 @@
   "description": "A collection of ES6 modules for use in MentalModeler apps.",
   "license": "MIT",
   "main": "index.js",
+  "exports": {
+    ".": "./index.js"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mentalmodeler/mm-modules.git"
