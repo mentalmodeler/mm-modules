@@ -6,11 +6,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `mm-modules` is a small collection of ES6 modules used by MentalModeler apps to load, parse,
 analyze, and compare Fuzzy Cognitive Map (FCM) models (`.mmp` files). It is a library with no
-build step, no bundler config, no linter, and no test suite — `index.js` re-exports the public
-API directly from `src/`, and consuming apps import the ES6 source as-is.
+build step, no bundler config, and no linter — `index.js` re-exports the public API directly
+from `src/`, and consuming apps import the ES6 source as-is. `package.json` `exports` exposes only
+the package root (`.` -> `index.js`), so consumers can't deep-import from `src/`.
 
-There are no npm scripts defined in `package.json` (no build/lint/test commands exist in this
-repo). Dependencies: `mathjs` (matrix operations in `src/scenario.js`) and `d3-force` (graph
+The only npm scripts are `test`/`test:watch` (Vitest; see "Working in this repo"). Dependencies: `mathjs` (matrix operations in `src/scenario.js`) and `d3-force` (graph
 layout in `src/csvImport.js`).
 
 ## Domain model
@@ -83,6 +83,14 @@ fuzzy values like `"H+"`/`"M-"` that get converted to numbers).
   without shifting other rows/columns, and data rows are matched to concepts by their row label
   (falling back to position), so blank lines in the file don't misplace later rows; concept ids are
   the original header column index.
+- **export.js** — `getMatrixRows`, `toCompareRefModel` and `findRelationship` (the lookup
+  `getMatrixRows` is built on; public so apps' matrix views share one definition). `getMatrixRows`
+  is the inverse of `importCSV`'s input shape (header row = blank corner + concept names; `''` where
+  there is no relationship, and a real `0` stays `0`). `toCompareRefModel` returns a copy with
+  x/y stripped from every concept and `compareRef: true` set — the JSON "answer key" for
+  mm-compare. **JSON only**: all new writes are JSON; XML is read-only legacy, and no XML writer
+  (or `<compareref/>` equivalent) is planned. `parseMMP` preserves `compareRef` on a JSON
+  round-trip, which is how an app can refuse to reopen an answer key.
 
 ## Working in this repo
 
