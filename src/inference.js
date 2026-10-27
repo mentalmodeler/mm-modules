@@ -17,52 +17,97 @@ const squashFunctions = {
     trivalent: (x) => (x > 0 ? 1 : x < 0 ? -1 : 0),
 };
 
-// state x weights, with row = source: each concept collects from the concepts that point at it.
-const collect = (state, weights) => weights[0].map((_, j) => state.reduce((sum, value, i) => sum + value * weights[i][j], 0));
+// Each concept collects from the concepts that point at it (weights is row = source). Real models
+// are sparse and a non-settling map runs up to MAX_ITERATIONS steps, so each concept's incoming
+// links are listed once up front instead of multiplying through the dense matrix every step.
+const getIncoming = (weights) =>
+    weights[0].map((_, target) => {
+        const sources = [];
+        const values = [];
+        weights.forEach((row, source) => {
+            if (row[target] !== 0) {
+                sources.push(source);
+                values.push(row[target]);
+            }
+        });
+        return {sources: Int32Array.from(sources), values: Float64Array.from(values)};
+    });
 
-const getPreActivation = (rule, state, weights) => {
+const collect = (state, incoming, out) => {
+    incoming.forEach(({sources, values}, target) => {
+        let sum = 0;
+        for (let k = 0; k < sources.length; k += 1) {
+            sum += state[sources[k]] * values[k];
+        }
+        out[target] = sum;
+    });
+};
+
+// Writes the pre-activation for each concept into `out` (scratch is working space for the rescaled rule).
+const getPreActivation = (rule, state, incoming, scratch, out) => {
     if (rule === 'rescaled kosko') {
-        const rescaled = state.map((value) => 2 * value - 1);
-        return collect(rescaled, weights).map((incoming, i) => rescaled[i] + incoming);
+        for (let i = 0; i < state.length; i += 1) {
+            scratch[i] = 2 * state[i] - 1;
+        }
+        collect(scratch, incoming, out);
+        for (let i = 0; i < state.length; i += 1) {
+            out[i] += scratch[i];
+        }
+        return;
     }
-    const incoming = collect(state, weights);
-    return rule === 'modified kosko' ? incoming.map((value, i) => state[i] + value) : incoming;
+    collect(state, incoming, out);
+    if (rule === 'modified kosko') {
+        for (let i = 0; i < state.length; i += 1) {
+            out[i] += state[i];
+        }
+    }
 };
 
 // Iterates to a fixed point from all ones, holding clamped concepts at their values. Some maps
 // (e.g. a bivalent or trivalent feedback loop) flip between states forever, so the iteration is
 // capped; at the cap the mean of the last two states is returned, since which one we stopped on is
 // arbitrary.
-const settle = (weights, {rule, squash, lambda}, clampValues) => {
+const settle = (incoming, {rule, squash, lambda}, clampValues) => {
+    const size = incoming.length;
     const squashFn = squashFunctions[squash];
-    let previous = weights.map(() => 1);
-    let prior = previous;
-    let current = previous;
+    const x = new Float64Array(size);
+    const scratch = new Float64Array(size);
+    let previous = new Float64Array(size).fill(1);
+    let prior = new Float64Array(size).fill(1);
+    let current = new Float64Array(size);
     let diff = 1;
     let iterations = 0;
 
     while (diff > EPSILON && iterations < MAX_ITERATIONS) {
         iterations += 1;
-        current = getPreActivation(rule, previous, weights).map((x, i) =>
-            clampValues.has(i) ? clampValues.get(i) : squashFn(x, lambda),
-        );
-        diff = Math.max(...current.map((value, i) => Math.abs(value - previous[i])));
-        prior = previous;
-        previous = current;
+        getPreActivation(rule, previous, incoming, scratch, x);
+        diff = 0;
+        for (let i = 0; i < size; i += 1) {
+            current[i] = clampValues.has(i) ? clampValues.get(i) : squashFn(x[i], lambda);
+            diff = Math.max(diff, Math.abs(current[i] - previous[i]));
+        }
+        [prior, previous, current] = [previous, current, prior];
     }
 
     if (diff > EPSILON) {
         console.warn(`mm-modules: scenario did not converge after ${MAX_ITERATIONS} iterations; returning the mean of the last two states.`);
-        return current.map((value, i) => (value + prior[i]) / 2);
+        return previous.map((value, i) => (value + prior[i]) / 2);
     }
-    return current;
+    return previous;
+};
+
+// A clamp value is a finite number or a numeric string; anything else is ignored, like an unknown id.
+const toClampValue = (value) => {
+    const number = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
+    return typeof number === 'number' && Number.isFinite(number) ? number : null;
 };
 
 /**
  * Change from baseline for every concept that was not clamped, in model order.
  * @param {{concepts: object[]}} model
  * @param {{clamps?: {id: string, value: number}[], settings?: object}} [options] settings are
- *   normalized (see normalizeScenarioSettings); clamps naming an unknown concept are ignored.
+ *   normalized (see normalizeScenarioSettings); clamps naming an unknown concept, or whose value is
+ *   not a finite number, are ignored.
  * @returns {{id: string, name: string, influence: number}[]}
  */
 const runInference = ({concepts = []}, {clamps = [], settings} = {}) => {
@@ -73,16 +118,18 @@ const runInference = ({concepts = []}, {clamps = [], settings} = {}) => {
     const weights = getWeightMatrix(concepts).map((row) =>
         row.map((weight) => (Math.abs(weight) <= normalized.noiseThreshold ? 0 : weight)),
     );
+    const incoming = getIncoming(weights);
     const indexById = new Map(concepts.map(({id}, i) => [id, i]));
     const clampValues = new Map();
     clamps.forEach(({id, value}) => {
-        if (indexById.has(id)) {
-            clampValues.set(indexById.get(id), value);
+        const clampValue = toClampValue(value);
+        if (indexById.has(id) && clampValue !== null) {
+            clampValues.set(indexById.get(id), clampValue);
         }
     });
 
-    const baseline = settle(weights, normalized, new Map());
-    const scenario = settle(weights, normalized, clampValues);
+    const baseline = settle(incoming, normalized, new Map());
+    const scenario = settle(incoming, normalized, clampValues);
 
     return concepts
         .map(({id, name}, i) => ({id, name, influence: scenario[i] - baseline[i]}))

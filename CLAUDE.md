@@ -59,12 +59,15 @@ fuzzy values like `"H+"`/`"M-"` that get converted to numbers).
 - **inference.js** — `runInference(model, { clamps, settings })`: the PyFCM-parity scenario engine.
   Same return shape as `runScenario` (change from baseline for each non-clamped concept), but
   `clamps` is an explicit `[{ id, value }]` list, so a concept can be clamped to exactly `0`
-  (`runScenario` treats an influence of 0 as "not clamped"); clamps naming an unknown id are
-  ignored. It has its own convergence loop (same epsilon and 10000-iteration cap as `converge`; not
+  (`runScenario` treats an influence of 0 as "not clamped"); clamps naming an unknown id, or whose
+  value is not a finite number (or numeric string), are ignored. Incoming links are listed once
+  up front (typed arrays, sparse) so a map that never settles still costs well under a second at
+  200 concepts. It has its own convergence loop (same epsilon and 10000-iteration cap as `converge`; not
   shared with it, merging them is a possible cleanup). With default settings it equals
   `runScenario` with `sigm`. **PyFCM is the oracle:** `test/fixtures/pyfcm-golden.json` holds
   results from PyFCM's own scenario math (`test/golden/`, which also says how to regenerate it);
-  change the engine only with that file's tests green. PyFCM is Payam Aminpour's, MIT licensed.
+  change the engine only with that file's tests green. The file leaves out cases PyFCM needs more
+  than 10,000 steps to settle (the engine's cap is a deliberate departure there; see `test/golden/README.md`). PyFCM is Payam Aminpour's, MIT licensed.
 - **compare.js** — `compareModels`/`compareModel`: diffs a set of student/candidate models
   against a canonical model. Computes extra/missing/present nodes, extra/missing relationships,
   then detects **reversed** relationships (an edge present in both models but with endpoints

@@ -5,30 +5,54 @@ import { concept, rel } from './fixtures';
 import golden from './fixtures/pyfcm-golden.json';
 
 // Concept ids are the golden names; a relationship for every non-zero matrix entry (row = source).
-const goldenModel = {
-    concepts: golden.names.map((name, i) =>
+const toModel = (names, matrix) => ({
+    concepts: names.map((name, i) =>
         concept(
             name,
             name,
-            golden.matrix[i].flatMap((weight, j) => (weight !== 0 ? [rel(golden.names[j], weight)] : [])),
+            matrix[i].flatMap((weight, j) => (weight !== 0 ? [rel(names[j], weight)] : [])),
         ),
     ),
-};
+});
+const goldenModel = toModel(golden.names, golden.matrix);
 
 const describeCase = ({ settings: s, clamps }, i) =>
-    `#${i} ${s.rule} / ${s.squash} / lambda ${s.lambda} / threshold ${s.noiseThreshold} / ${clamps.length} clamps`;
+    `#${i} ${s.rule} / ${s.squash} / lambda ${s.lambda} / threshold ${s.noiseThreshold} / clamps ${clamps
+        .map(({ name, value }) => `${name}=${value}`)
+        .join(', ')}`;
+
+const expectMatchesPyFCM = (model, testCase) => {
+    const clamps = testCase.clamps.map(({ name, value }) => ({ id: name, value }));
+    const result = runInference(model, { clamps, settings: testCase.settings });
+    const clampedNames = testCase.clamps.map(({ name }) => name);
+
+    expect(result).toHaveLength(model.concepts.length - clampedNames.length);
+    result.forEach(({ id, influence }) => {
+        expect(clampedNames).not.toContain(id);
+        expect(influence).toBeCloseTo(testCase.changes[id], 9);
+    });
+};
 
 describe('runInference against PyFCM', () => {
     it.each(golden.cases.map((c, i) => [describeCase(c, i), c]))('matches PyFCM: %s', (_, testCase) => {
-        const clamps = testCase.clamps.map(({ name, value }) => ({ id: name, value }));
-        const result = runInference(goldenModel, { clamps, settings: testCase.settings });
-        const clampedNames = testCase.clamps.map(({ name }) => name);
+        expectMatchesPyFCM(goldenModel, testCase);
+    });
 
-        expect(result).toHaveLength(golden.names.length - clampedNames.length);
-        result.forEach(({ id, influence }) => {
-            expect(clampedNames).not.toContain(id);
-            expect(influence).toBeCloseTo(testCase.changes[id], 9);
+    describe.each(golden.maps.map((m) => [m.name, m]))('on the small map "%s"', (_, { names, matrix, cases }) => {
+        const model = toModel(names, matrix);
+        it.each(cases.map((c, i) => [describeCase(c, i), c]))('matches PyFCM: %s', (__, testCase) => {
+            expectMatchesPyFCM(model, testCase);
         });
+    });
+
+    it('covers bivalent and trivalent cases that actually move, and weights on the threshold boundary', () => {
+        const all = [...golden.cases, ...golden.maps.flatMap((m) => m.cases)];
+        const moves = (testCase) => Object.values(testCase.changes).some((change) => Math.abs(change) > 1e-9);
+        ['bivalent', 'trivalent'].forEach((squash) =>
+            expect(all.filter((c) => c.settings.squash === squash && moves(c)).length).toBeGreaterThan(10),
+        );
+        expect(all.some((c) => c.settings.noiseThreshold === 0.25)).toBe(true);
+        expect(all.some((c) => c.settings.noiseThreshold === 0.5)).toBe(true);
     });
 });
 
@@ -81,6 +105,23 @@ describe('runInference clamps', () => {
         expect(withUnknown).toEqual(runInference(loop, { clamps: [{ id: 'b', value: 1 }] }));
     });
 
+    it.each([[{ id: 'a' }], [{ id: 'a', value: NaN }], [{ id: 'a', value: Infinity }], [{ id: 'a', value: 'H+' }]])(
+        'ignores a clamp whose value is not a finite number: %j',
+        (clamp) => {
+            const chain = {
+                concepts: [concept('a', 'A', [rel('b', 0.5)]), concept('b', 'B', [rel('c', -0.75)]), concept('c', 'C')],
+            };
+            expect(runInference(chain, { clamps: [clamp] })).toEqual(runInference(chain, { clamps: [] }));
+        },
+    );
+
+    it('accepts a numeric string as a clamp value', () => {
+        const chain = { concepts: [concept('a', 'A', [rel('b', 0.5)]), concept('b', 'B')] };
+        expect(runInference(chain, { clamps: [{ id: 'a', value: '0.7' }] })).toEqual(
+            runInference(chain, { clamps: [{ id: 'a', value: 0.7 }] }),
+        );
+    });
+
     it('does not mutate the model or the clamps', () => {
         const modelCopy = JSON.parse(JSON.stringify(goldenModel));
         const clamps = [{ id: golden.names[1], value: 0.5 }];
@@ -126,6 +167,47 @@ describe('runInference edge cases', () => {
         const invalid = { rule: 'nope', squash: 5, lambda: 'abc', noiseThreshold: -3 };
         expect(runInference(goldenModel, { clamps, settings: invalid })).toEqual(runInference(goldenModel, { clamps }));
     });
+});
+
+// A reproducible random signed map (mulberry32), sparse like real models.
+const randomModel = (size, density, seed) => {
+    let state = seed;
+    const random = () => {
+        state = (state + 0x6d2b79f5) | 0;
+        let t = Math.imul(state ^ (state >>> 15), 1 | state);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    const ids = Array.from({ length: size }, (_, i) => `c${i}`);
+    return {
+        concepts: ids.map((id) =>
+            concept(
+                id,
+                id,
+                ids.flatMap((target) => (random() < density ? [rel(target, (random() * 2 - 1).toFixed(2))] : [])),
+            ),
+        ),
+    };
+};
+
+describe('runInference speed', () => {
+    it.each(['bivalent', 'trivalent'])(
+        'finishes a 200-concept map that never settles (%s) without a noticeable stall',
+        (squash) => {
+            const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+            const model = randomModel(200, 0.05, 7);
+
+            const start = performance.now();
+            const result = runInference(model, { clamps: [{ id: 'c0', value: -1 }], settings: { squash } });
+            const elapsed = performance.now() - start;
+
+            expect(warn).toHaveBeenCalled(); // it really did run to the iteration cap
+            expect(result).toHaveLength(199);
+            expect(elapsed).toBeLessThan(300);
+            warn.mockRestore();
+        },
+        30000,
+    );
 });
 
 describe('runInference convergence', () => {
